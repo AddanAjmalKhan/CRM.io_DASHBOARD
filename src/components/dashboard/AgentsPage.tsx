@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Plus, Pencil, Trash2, X, Check, UserCircle2, Eye, EyeOff, Search as SearchIcon, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Check, UserCircle2, Eye, EyeOff, Search as SearchIcon, Loader2, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 
