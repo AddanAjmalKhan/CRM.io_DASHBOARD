@@ -49,6 +49,11 @@ function extractEmailFromBody(body: string): string | null {
   return m ? m[1] : null
 }
 
+function extractNameFromBody(body: string): string | null {
+  const m = body.match(/Name:\s*([^\n\r<]+)/i)
+  return m ? m[1].trim() : null
+}
+
 function normalizeSubject(s: string) {
   return s.replace(/^(Re:|Fwd:|FW:|RE:|FWD:)\s*/gi, '').trim().toLowerCase()
 }
@@ -142,12 +147,14 @@ export async function GET(request: NextRequest) {
       const first   = sorted[0]
       const isMine  = (e: string) => e.toLowerCase() === cfg.user.toLowerCase()
 
+      const extractedEmail = extractEmailFromBody(first.body)
+      const extractedName  = extractNameFromBody(first.body)
       const leadEmail = isMine(first.from.email)
         ? (first.to[0] ?? '')
-        : (first.replyTo || extractEmailFromBody(first.body) || first.from.email)
+        : (first.replyTo || extractedEmail || first.from.email)
       const leadName  = isMine(first.from.email)
         ? leadEmail.split('@')[0]
-        : (first.from.name || first.from.email.split('@')[0])
+        : (extractedName || first.from.name || first.from.email.split('@')[0])
 
       threads.push({
         id:        first.uid,
