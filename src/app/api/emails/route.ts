@@ -5,6 +5,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
+export const dynamic = 'force-dynamic'
 
 type Account = 'IntelTrademark' | 'Office101' | 'Office102'
 
