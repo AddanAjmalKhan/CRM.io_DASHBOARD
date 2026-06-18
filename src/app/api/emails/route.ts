@@ -161,7 +161,7 @@ export async function GET(request: NextRequest) {
   } catch (err: any) {
     try { await client.logout() } catch {}
     console.error('[emails] IMAP error:', err.message)
-    return NextResponse.json({ error: `[host:${cfg.imapHost}] ${err.message}` }, { status: 500 })
+    return NextResponse.json({ error: `Could not connect to ${cfg.imapHost}: ${err.message}` }, { status: 500 })
   }
 }
 
