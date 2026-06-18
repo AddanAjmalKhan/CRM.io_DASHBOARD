@@ -44,6 +44,11 @@ function relativeTime(date: Date): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
+function extractEmailFromBody(body: string): string | null {
+  const m = body.match(/Email:\s*([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/i)
+  return m ? m[1] : null
+}
+
 function normalizeSubject(s: string) {
   return s.replace(/^(Re:|Fwd:|FW:|RE:|FWD:)\s*/gi, '').trim().toLowerCase()
 }
@@ -128,7 +133,7 @@ export async function GET(request: NextRequest) {
 
       const leadEmail = isMine(first.from.email)
         ? (first.to[0] ?? '')
-        : (first.replyTo || first.from.email)
+        : (first.replyTo || extractEmailFromBody(first.body) || first.from.email)
       const leadName  = isMine(first.from.email)
         ? leadEmail.split('@')[0]
         : (first.from.name || first.from.email.split('@')[0])
