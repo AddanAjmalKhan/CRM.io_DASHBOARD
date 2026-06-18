@@ -79,23 +79,22 @@ export async function GET(request: NextRequest) {
     logger: false,
   })
 
-  try {
-    await client.connect()
-    const emails: any[] = []
-    const lock = await client.getMailboxLock('INBOX')
-
+  const fetchFromMailbox = async (mailboxName: string): Promise<any[]> => {
+    const results: any[] = []
+    let lock: any = null
     try {
+      lock = await client.getMailboxLock(mailboxName)
       const total: number = (client.mailbox as any)?.exists ?? 0
       if (total > 0) {
-        const start = Math.max(1, total - 9) // last 10
+        const start = Math.max(1, total - 9)
         for await (const msg of client.fetch(`${start}:${total}`, { source: true, flags: true })) {
           try {
             if (!msg.source) continue
             const parsed = await simpleParser(msg.source)
             const body = parsed.text ?? stripHtml((parsed.html as string) ?? '')
-            emails.push({
-              uid:       msg.uid,
-              messageId: parsed.messageId ?? `uid-${msg.uid}`,
+            results.push({
+              uid:       `${mailboxName}:${msg.uid}`,
+              messageId: parsed.messageId ?? `uid-${mailboxName}-${msg.uid}`,
               inReplyTo: parsed.inReplyTo ?? null,
               replyTo:   parsed.replyTo?.value[0]?.address ?? null,
               from: {
@@ -111,9 +110,21 @@ export async function GET(request: NextRequest) {
           } catch { /* skip unparseable */ }
         }
       }
-    } finally {
-      lock.release()
+    } catch { /* mailbox may not exist */ } finally {
+      try { lock?.release() } catch {}
     }
+    return results
+  }
+
+  try {
+    await client.connect()
+
+    const inbox = await fetchFromMailbox('INBOX')
+    // Also check spam/junk folders where Resend-delivered emails often land
+    const spam  = await fetchFromMailbox('Spam')
+    const junk  = await fetchFromMailbox('Junk')
+    const emails = [...inbox, ...spam, ...junk]
+
     await client.logout()
 
     // Group by normalized subject → threads
