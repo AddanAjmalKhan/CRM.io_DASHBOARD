@@ -10,7 +10,7 @@ type Account = 'IntelTrademark' | 'Office101' | 'Office102'
 
 const ACCOUNTS: Record<Account, { imapHost: string; smtpHost: string; imapPort: number; smtpPort: number; user: string; passKey: string }> = {
   IntelTrademark: {
-    imapHost: 'mail.inteltrademark.com', smtpHost: 'mail.inteltrademark.com',
+    imapHost: 'premium77.web-hosting.com', smtpHost: 'premium77.web-hosting.com',
     imapPort: 993, smtpPort: 465,
     user: 'Info@inteltrademark.com',
     passKey: 'EMAIL_PASS_INTELTRADEMARK',
