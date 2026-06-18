@@ -92,6 +92,7 @@ export async function GET(request: NextRequest) {
               uid:       msg.uid,
               messageId: parsed.messageId ?? `uid-${msg.uid}`,
               inReplyTo: parsed.inReplyTo ?? null,
+              replyTo:   parsed.replyTo?.value[0]?.address ?? null,
               from: {
                 name:  parsed.from?.value[0]?.name  ?? parsed.from?.value[0]?.address?.split('@')[0] ?? 'Unknown',
                 email: parsed.from?.value[0]?.address ?? '',
@@ -125,7 +126,9 @@ export async function GET(request: NextRequest) {
       const first   = sorted[0]
       const isMine  = (e: string) => e.toLowerCase() === cfg.user.toLowerCase()
 
-      const leadEmail = isMine(first.from.email) ? (first.to[0] ?? '') : first.from.email
+      const leadEmail = isMine(first.from.email)
+        ? (first.to[0] ?? '')
+        : (first.replyTo || first.from.email)
       const leadName  = isMine(first.from.email)
         ? leadEmail.split('@')[0]
         : (first.from.name || first.from.email.split('@')[0])
