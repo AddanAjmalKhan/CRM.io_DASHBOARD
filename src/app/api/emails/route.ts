@@ -164,6 +164,7 @@ export async function GET(request: NextRequest) {
         unread:    sorted.some((m: any) => m.unread),
         starred:   false,
         lastTime:  relativeTime(new Date(latest.date)),
+        lastDate:  new Date(latest.date).getTime(),
         preview:   latest.body.slice(0, 100),
         messageId: latest.messageId,
         messages:  sorted.map((m: any) => ({
@@ -177,11 +178,7 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    threads.sort((a: any, b: any) => {
-      const aUid = a.messages[a.messages.length - 1]?.id ?? 0
-      const bUid = b.messages[b.messages.length - 1]?.id ?? 0
-      return bUid - aUid
-    })
+    threads.sort((a: any, b: any) => (b.lastDate ?? 0) - (a.lastDate ?? 0))
 
     return NextResponse.json(threads)
   } catch (err: any) {

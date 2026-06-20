@@ -397,39 +397,52 @@ export function EmailsPage() {
 
                     <h2 className="text-xl font-black text-slate-900 mb-6 tracking-tight">{selected.subject}</h2>
 
-                    <div className="flex flex-col gap-6">
+                    <div className="flex flex-col gap-4">
                       {selected.messages.map((msg, idx) => {
                         const isSent = msg.type === "sent";
+                        const prevMsg = idx > 0 ? selected.messages[idx - 1] : null;
+                        const showTime = idx === 0 || prevMsg?.type !== msg.type;
                         return (
-                          <div key={msg.id} className="flex flex-col gap-3">
-                            {idx > 0 && (
-                              <div className="flex items-center gap-3 py-2">
+                          <div key={msg.id} className="flex flex-col gap-1">
+                            {/* Time separator between sender switches */}
+                            {idx > 0 && showTime && (
+                              <div className="flex items-center gap-3 py-1 my-1">
                                 <div className="flex-1 h-px bg-slate-100" />
                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{msg.time}</span>
                                 <div className="flex-1 h-px bg-slate-100" />
                               </div>
                             )}
-                            <div className="flex items-start gap-4">
-                              <div
-                                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${isSent ? "border" : getAvatarStyle(msg.from).bg}`}
-                                style={isSent ? { backgroundColor: meta.bg, color: meta.color, borderColor: `${meta.color}40` } : undefined}>
-                                {initials(isSent ? meta.label : msg.from)}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-baseline gap-2 mb-1.5">
-                                  <span className="text-xs font-bold text-slate-800">{msg.from}</span>
-                                  <span className="text-[10px] text-slate-400 font-semibold">{msg.time}</span>
-                                  {isSent && (
-                                    <span className="text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider"
-                                      style={{ backgroundColor: meta.bg, color: meta.color }}>Sent</span>
-                                  )}
+                            <div className={`flex items-end gap-2.5 ${isSent ? "flex-row-reverse" : ""}`}>
+                              {/* Avatar */}
+                              {!isSent ? (
+                                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${getAvatarStyle(msg.from).bg}`}>
+                                  {initials(msg.from)}
+                                </div>
+                              ) : (
+                                <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 border"
+                                  style={{ backgroundColor: meta.bg, color: meta.color, borderColor: `${meta.color}30` }}>
+                                  {initials(meta.label)}
+                                </div>
+                              )}
+                              {/* Bubble */}
+                              <div className={`flex flex-col gap-1 max-w-[68%] ${isSent ? "items-end" : "items-start"}`}>
+                                <div className="flex items-baseline gap-1.5">
+                                  <span className="text-[11px] font-bold text-slate-600">{isSent ? meta.label : msg.from}</span>
+                                  <span className="text-[10px] text-slate-400">{msg.time}</span>
                                 </div>
                                 <div
-                                  className="rounded-xl px-5 py-4 text-sm leading-relaxed text-slate-600 border whitespace-pre-wrap shadow-sm"
-                                  style={{ backgroundColor: isSent ? meta.lightBg : "#ffffff", borderColor: isSent ? `${meta.color}15` : "#e2e8f080" }}>
+                                  className={`px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap shadow-sm ${
+                                    isSent
+                                      ? "rounded-2xl rounded-br-sm"
+                                      : "rounded-2xl rounded-bl-sm border border-slate-100"
+                                  }`}
+                                  style={{
+                                    backgroundColor: isSent ? meta.color : "#ffffff",
+                                    color: isSent ? "#ffffff" : "#374151",
+                                  }}>
                                   {msg.body}
                                 </div>
-                                <p className="text-[10px] mt-1 ml-1 text-slate-400 font-semibold">{msg.fromEmail}</p>
+                                <p className="text-[10px] text-slate-400 font-medium">{msg.fromEmail}</p>
                               </div>
                             </div>
                           </div>
