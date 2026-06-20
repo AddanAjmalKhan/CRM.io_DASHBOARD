@@ -203,20 +203,39 @@ export async function POST(request: NextRequest) {
   const pass = process.env[cfg.passKey]
   if (!pass) return NextResponse.json({ error: `Email not configured for ${account}` }, { status: 503 })
 
+  const mailOptions = {
+    from:    `${cfg.user} <${cfg.user}>`,
+    to, subject, text,
+    ...(inReplyTo ? { inReplyTo, references: inReplyTo } : {}),
+  }
+
   try {
+    // Send via SMTP
     const transporter = nodemailer.createTransport({
       host: cfg.smtpHost, port: cfg.smtpPort, secure: true,
       auth: { user: cfg.user, pass },
       tls: { rejectUnauthorized: false },
     })
+    await transporter.sendMail(mailOptions)
 
-    await transporter.sendMail({
-      from:      `${cfg.user} <${cfg.user}>`,
-      to,
-      subject,
-      text,
-      ...(inReplyTo ? { inReplyTo, references: inReplyTo } : {}),
-    })
+    // Save to Sent folder so it appears in the conversation thread
+    try {
+      const rawTransport = nodemailer.createTransport({ streamTransport: true, newline: 'unix', buffer: true })
+      const rawInfo = await rawTransport.sendMail(mailOptions)
+      const rawBuffer = rawInfo.message as Buffer
+
+      const saveClient = new ImapFlow({
+        host: cfg.imapHost, port: cfg.imapPort, secure: true,
+        auth: { user: cfg.user, pass },
+        tls: { rejectUnauthorized: false },
+        logger: false,
+      })
+      await saveClient.connect()
+      for (const folder of ['Sent', 'Sent Items', 'INBOX.Sent']) {
+        try { await saveClient.append(folder, rawBuffer, ['\\Seen']); break } catch {}
+      }
+      await saveClient.logout()
+    } catch { /* non-fatal — email was sent, just not saved to Sent folder */ }
 
     return NextResponse.json({ success: true })
   } catch (err: any) {
