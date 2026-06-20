@@ -124,11 +124,12 @@ export async function GET(request: NextRequest) {
   try {
     await client.connect()
 
-    const inbox = await fetchFromMailbox('INBOX')
-    // Also check spam/junk folders where Resend-delivered emails often land
-    const spam  = await fetchFromMailbox('Spam')
-    const junk  = await fetchFromMailbox('Junk')
-    const emails = [...inbox, ...spam, ...junk]
+    const inbox      = await fetchFromMailbox('INBOX')
+    const spam       = await fetchFromMailbox('Spam')
+    const junk       = await fetchFromMailbox('Junk')
+    const sent       = await fetchFromMailbox('Sent')
+    const sentItems  = await fetchFromMailbox('Sent Items')
+    const emails = [...inbox, ...spam, ...junk, ...sent, ...sentItems]
 
     await client.logout()
 
