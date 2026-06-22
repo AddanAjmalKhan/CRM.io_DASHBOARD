@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Mail, Send, Plus, X, Reply, Search, ArrowUpDown, Star, ChevronRight, Loader2, RefreshCw, AlertCircle } from "lucide-react";
+import { Mail, Send, Plus, X, Reply, Search, ArrowUpDown, Star, ChevronRight, Loader2, RefreshCw, AlertCircle, Trash2, Check } from "lucide-react";
 
 const NAVY = "#161642";
 
 interface EmailMsg {
-  id: number;
+  id: string | number;
   from: string;
   fromEmail: string;
   body: string;
@@ -15,7 +15,7 @@ interface EmailMsg {
 }
 
 interface Thread {
-  id: number;
+  id: string | number;
   leadName: string;
   leadEmail: string;
   subject: string;
@@ -66,6 +66,7 @@ export function EmailsPage() {
   const [search,   setSearch]   = useState("");
   const [sending,  setSending]  = useState(false);
   const [sendError, setSendError] = useState("");
+  const [deletingThreadId, setDeletingThreadId] = useState<string | number | null>(null);
   const [showCompose, setShowCompose]       = useState(false);
   const [composeTo, setComposeTo]           = useState("");
   const [composeSubject, setComposeSubject] = useState("");
@@ -177,14 +178,47 @@ export function EmailsPage() {
     setSending(false);
   };
 
-  const toggleStar = (threadId: number, e: React.MouseEvent) => {
+  const markAsRead = (t: Thread) => {
+    if (!t.unread) return;
+    setThreads(prev => ({
+      ...prev,
+      [activeWebsite]: prev[activeWebsite].map(th => th.id === t.id ? { ...th, unread: false } : th),
+    }));
+    const uids = t.messages.map(m => m.id).filter(id => typeof id === 'string') as string[];
+    if (uids.length) {
+      fetch('/api/emails', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ account: activeWebsite, uids }),
+      }).catch(() => {});
+    }
+  };
+
+  const handleDeleteThread = async (t: Thread) => {
+    setThreads(prev => ({
+      ...prev,
+      [activeWebsite]: prev[activeWebsite].filter(th => th.id !== t.id),
+    }));
+    if (selected?.id === t.id) setSelected(null);
+    setDeletingThreadId(null);
+    const uids = t.messages.map(m => m.id).filter(id => typeof id === 'string') as string[];
+    if (uids.length) {
+      fetch('/api/emails', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ account: activeWebsite, uids }),
+      }).catch(() => {});
+    }
+  };
+
+  const toggleStar = (threadId: string | number, e: React.MouseEvent) => {
     e.stopPropagation();
     setThreads(prev => ({ ...prev, [activeWebsite]: prev[activeWebsite].map(t => t.id === threadId ? { ...t, starred: !t.starred } : t) }));
-    if (selected?.id === threadId) setSelected(prev => prev ? { ...prev, starred: !prev.starred } : prev);
+    if (selected?.id === threadId) setSelected(p => p ? { ...p, starred: !p.starred } : p);
   };
 
   return (
-    <div className="flex flex-col h-full gap-0 -m-7" style={{ margin: 0 }}>
+    <div className="flex flex-col gap-0" style={{ height: 'calc(100vh - 65px)', margin: '-1.75rem' }}>
 
       {/* Tabs bar */}
       <div className="flex items-center justify-between px-8 py-4 bg-white border-b border-slate-100 flex-shrink-0">
@@ -297,15 +331,9 @@ export function EmailsPage() {
                     const avatar   = getAvatarStyle(t.leadName);
                     return (
                       <div key={t.id} role="button" tabIndex={0}
-                        onClick={() => {
-                          setSelected(t);
-                          setThreads(prev => ({
-                            ...prev,
-                            [activeWebsite]: prev[activeWebsite].map(th => th.id === t.id ? { ...th, unread: false } : th),
-                          }));
-                        }}
+                        onClick={() => { setSelected(t); markAsRead(t); setDeletingThreadId(null); }}
                         onKeyDown={e => { if (e.key === "Enter" || e.key === " ") e.currentTarget.click(); }}
-                        className={`w-full text-left rounded-xl p-3.5 transition-all duration-200 cursor-pointer border relative overflow-hidden ${
+                        className={`w-full text-left rounded-xl p-3.5 transition-all duration-200 cursor-pointer border relative overflow-hidden group ${
                           isActive
                             ? "bg-white shadow-md shadow-slate-100/50 border-slate-200/50"
                             : "bg-white/80 border-slate-100 hover:border-slate-200/60 hover:bg-white hover:shadow-sm"
@@ -326,6 +354,17 @@ export function EmailsPage() {
                                 <button onClick={e => { e.stopPropagation(); toggleStar(t.id, e); }} className="text-slate-300 hover:text-amber-500 transition-colors">
                                   <Star size={12} fill={t.starred ? "#f59e0b" : "none"} style={{ color: t.starred ? "#f59e0b" : "currentColor" }} />
                                 </button>
+                                {deletingThreadId === t.id ? (
+                                  <button onClick={e => { e.stopPropagation(); handleDeleteThread(t); }}
+                                    className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-500 text-white transition-all cursor-pointer">
+                                    <Check size={9} /> Yes
+                                  </button>
+                                ) : (
+                                  <button onClick={e => { e.stopPropagation(); setDeletingThreadId(t.id); }}
+                                    className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-all cursor-pointer">
+                                    <Trash2 size={12} />
+                                  </button>
+                                )}
                               </div>
                             </div>
                             <p className={`text-xs truncate mb-1 ${t.unread ? "font-bold text-slate-800" : "font-medium text-slate-500"}`}>{t.subject}</p>
@@ -388,7 +427,7 @@ export function EmailsPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-3 flex-shrink-0">
-                        <button onClick={e => toggleStar(selected.id, e)} className="text-slate-300 hover:text-amber-500 transition-colors">
+                        <button onClick={e => { e.stopPropagation(); toggleStar(selected.id, e); }} className="text-slate-300 hover:text-amber-500 transition-colors">
                           <Star size={16} fill={selected.starred ? "#f59e0b" : "none"} style={{ color: selected.starred ? "#f59e0b" : "currentColor" }} />
                         </button>
                         <span className="text-xs font-semibold text-slate-400">{selected.lastTime}</span>

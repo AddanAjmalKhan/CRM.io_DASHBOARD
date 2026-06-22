@@ -189,6 +189,78 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/* ─── PATCH: mark thread as read ─────────────────────── */
+export async function PATCH(request: NextRequest) {
+  const { account, uids } = await request.json()
+  const cfg  = ACCOUNTS[account as Account]
+  if (!cfg) return NextResponse.json({ error: 'Invalid account' }, { status: 400 })
+  const pass = process.env[cfg.passKey]
+  if (!pass) return NextResponse.json({ success: false })
+
+  const client = new ImapFlow({
+    host: cfg.imapHost, port: cfg.imapPort, secure: true,
+    auth: { user: cfg.user, pass },
+    tls: { rejectUnauthorized: false }, logger: false,
+  })
+  try {
+    await client.connect()
+    const byMailbox: Record<string, number[]> = {}
+    for (const uid of (uids as string[])) {
+      const idx = uid.indexOf(':')
+      if (idx === -1) continue
+      const mailbox = uid.slice(0, idx)
+      const num = parseInt(uid.slice(idx + 1))
+      if (!byMailbox[mailbox]) byMailbox[mailbox] = []
+      byMailbox[mailbox].push(num)
+    }
+    for (const [mailbox, uidList] of Object.entries(byMailbox)) {
+      let lock: any = null
+      try {
+        lock = await client.getMailboxLock(mailbox)
+        await client.messageFlagsAdd(uidList.join(','), ['\\Seen'], { uid: true } as any)
+      } catch {} finally { try { lock?.release() } catch {} }
+    }
+    await client.logout()
+  } catch { try { await client.logout() } catch {} }
+  return NextResponse.json({ success: true })
+}
+
+/* ─── DELETE: remove thread messages ─────────────────── */
+export async function DELETE(request: NextRequest) {
+  const { account, uids } = await request.json()
+  const cfg  = ACCOUNTS[account as Account]
+  if (!cfg) return NextResponse.json({ error: 'Invalid account' }, { status: 400 })
+  const pass = process.env[cfg.passKey]
+  if (!pass) return NextResponse.json({ success: false })
+
+  const client = new ImapFlow({
+    host: cfg.imapHost, port: cfg.imapPort, secure: true,
+    auth: { user: cfg.user, pass },
+    tls: { rejectUnauthorized: false }, logger: false,
+  })
+  try {
+    await client.connect()
+    const byMailbox: Record<string, number[]> = {}
+    for (const uid of (uids as string[])) {
+      const idx = uid.indexOf(':')
+      if (idx === -1) continue
+      const mailbox = uid.slice(0, idx)
+      const num = parseInt(uid.slice(idx + 1))
+      if (!byMailbox[mailbox]) byMailbox[mailbox] = []
+      byMailbox[mailbox].push(num)
+    }
+    for (const [mailbox, uidList] of Object.entries(byMailbox)) {
+      let lock: any = null
+      try {
+        lock = await client.getMailboxLock(mailbox)
+        await client.messageDelete(uidList.join(','), { uid: true } as any)
+      } catch {} finally { try { lock?.release() } catch {} }
+    }
+    await client.logout()
+  } catch { try { await client.logout() } catch {} }
+  return NextResponse.json({ success: true })
+}
+
 /* ─── POST: send / reply ──────────────────────────────── */
 export async function POST(request: NextRequest) {
   const { account, to, subject, text, inReplyTo } = await request.json()
