@@ -20,7 +20,7 @@ const ACCOUNTS: Record<Account, { imapHost: string; smtpHost: string; imapPort: 
   IntelTrademark: {
     imapHost: 'premium77.web-hosting.com', smtpHost: 'premium77.web-hosting.com',
     imapPort: 993, smtpPort: 465,
-    user: 'Info@inteltrademark.com',
+    user: 'info@inteltrademark.com',
     passKey: 'EMAIL_PASS_INTELTRADEMARK',
   },
   Office101: {
@@ -69,6 +69,20 @@ function stripHtml(html: string) {
   return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
 }
 
+function stripQuotedReply(body: string): string {
+  const lines = body.split(/\r?\n/)
+  const out: string[] = []
+  for (const line of lines) {
+    const trimmed = line.trim()
+    // Stop at Gmail/Outlook quote attribution line: "On [date] ... wrote:"
+    if (/^On .{5,}wrote:\s*$/i.test(trimmed)) break
+    // Skip > quoted lines
+    if (trimmed.startsWith('>')) continue
+    out.push(line)
+  }
+  return out.join('\n').trim()
+}
+
 /* ─── GET: fetch emails from INBOX ───────────────────── */
 export async function GET(request: NextRequest) {
   const account = request.nextUrl.searchParams.get('account') as Account | null
@@ -108,12 +122,13 @@ export async function GET(request: NextRequest) {
       lock = await client.getMailboxLock(mailboxName)
       const total: number = (client.mailbox as any)?.exists ?? 0
       if (total > 0) {
-        const start = Math.max(1, total - 9)
+        const start = Math.max(1, total - 24)
         for await (const msg of client.fetch(`${start}:${total}`, { source: true, flags: true })) {
           try {
             if (!msg.source) continue
             const parsed = await simpleParser(msg.source)
-            const body = parsed.text ?? stripHtml((parsed.html as string) ?? '')
+            const raw  = parsed.text ?? stripHtml((parsed.html as string) ?? '')
+            const body = stripQuotedReply(raw)
             results.push({
               uid:       `${mailboxName}:${msg.uid}`,
               messageId: parsed.messageId ?? `uid-${mailboxName}-${msg.uid}`,
@@ -132,7 +147,11 @@ export async function GET(request: NextRequest) {
           } catch { /* skip unparseable */ }
         }
       }
-    } catch { /* mailbox may not exist */ } finally {
+    } catch (e: any) {
+      if (!e?.message?.includes('does not exist') && !e?.message?.includes('Mailbox doesn') && !e?.message?.includes('NO')) {
+        console.error(`[emails] fetchFromMailbox(${mailboxName}) error:`, e?.message)
+      }
+    } finally {
       try { lock?.release() } catch {}
     }
     return results
@@ -143,10 +162,12 @@ export async function GET(request: NextRequest) {
 
     const inbox      = await fetchFromMailbox('INBOX')
     const spam       = await fetchFromMailbox('Spam')
+    const spamLower  = await fetchFromMailbox('spam')
     const junk       = await fetchFromMailbox('Junk')
+    const junkLower  = await fetchFromMailbox('junk')
     const sent       = await fetchFromMailbox('Sent')
     const sentItems  = await fetchFromMailbox('Sent Items')
-    const emails = [...inbox, ...spam, ...junk, ...sent, ...sentItems]
+    const emails = [...inbox, ...spam, ...spamLower, ...junk, ...junkLower, ...sent, ...sentItems]
 
     await client.logout()
 

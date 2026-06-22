@@ -32,7 +32,7 @@ type Website  = "IntelTrademark" | "Office101" | "Office102";
 type Status   = "idle" | "loading" | "loaded" | "error";
 
 const WEBSITE_META: Record<Website, { label: string; email: string; color: string; bg: string; lightBg: string }> = {
-  IntelTrademark: { label: "IntelTrademark",  email: "Info@inteltrademark.com",  color: "#7c3aed", bg: "#ede9fe", lightBg: "#faf8ff" },
+  IntelTrademark: { label: "IntelTrademark",  email: "info@inteltrademark.com",  color: "#7c3aed", bg: "#ede9fe", lightBg: "#faf8ff" },
   Office101:      { label: "Office 101 LLC",  email: "info@office101llc.com",   color: "#2563eb", bg: "#dbeafe", lightBg: "#f5f8ff" },
   Office102:      { label: "Office 102 LLC",  email: "Info@office102llc.com",   color: "#059669", bg: "#d1fae5", lightBg: "#f2fdf8" },
 };
@@ -81,7 +81,7 @@ export function EmailsPage() {
     setStatuses(p => ({ ...p, [account]: "loading" }));
     setErrors(p => ({ ...p, [account]: "" }));
     try {
-      const res  = await fetch(`/api/emails?account=${account}`);
+      const res  = await fetch(`/api/emails?account=${account}${force ? '&refresh=true' : ''}`);
       const data = await res.json();
       if (!res.ok) {
         setStatuses(p => ({ ...p, [account]: "error" }));
@@ -314,7 +314,7 @@ export function EmailsPage() {
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2 bg-slate-50/40">
+              <div className="flex-1 min-h-0 overflow-y-auto p-3 flex flex-col gap-2 bg-slate-50/40">
                 {filteredThreads.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-48 gap-3 text-center p-4">
                     <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
@@ -333,12 +333,12 @@ export function EmailsPage() {
                       <div key={t.id} role="button" tabIndex={0}
                         onClick={() => { setSelected(t); markAsRead(t); setDeletingThreadId(null); }}
                         onKeyDown={e => { if (e.key === "Enter" || e.key === " ") e.currentTarget.click(); }}
-                        className={`w-full text-left rounded-xl p-3.5 transition-all duration-200 cursor-pointer border relative overflow-hidden group ${
+                        style={{ borderLeftColor: isActive ? meta.color : 'transparent' }}
+                        className={`w-full text-left rounded-xl p-3.5 transition-all duration-200 cursor-pointer border-l-4 border-t border-r border-b relative group ${
                           isActive
-                            ? "bg-white shadow-md shadow-slate-100/50 border-slate-200/50"
-                            : "bg-white/80 border-slate-100 hover:border-slate-200/60 hover:bg-white hover:shadow-sm"
+                            ? "bg-white shadow-md shadow-slate-100/50 border-t-slate-200/50 border-r-slate-200/50 border-b-slate-200/50"
+                            : "bg-white/80 border-t-slate-100 border-r-slate-100 border-b-slate-100 hover:border-t-slate-200/60 hover:border-r-slate-200/60 hover:border-b-slate-200/60 hover:bg-white hover:shadow-sm"
                         }`}>
-                        {isActive && <div className="absolute left-0 top-0 bottom-0 w-[4px]" style={{ backgroundColor: meta.color }} />}
                         <div className="flex items-start gap-3">
                           <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${avatar.bg}`}>
                             {initials(t.leadName)}
@@ -411,7 +411,7 @@ export function EmailsPage() {
                   </div>
 
                   {/* Messages */}
-                  <div className="flex-1 overflow-y-auto px-8 py-6 bg-slate-50/20">
+                  <div className="flex-1 min-h-0 overflow-y-auto px-8 py-6 bg-slate-50/20">
                     <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-5 mb-6">
                       <div className="flex items-center gap-3">
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${getAvatarStyle(selected.leadName).bg}`}>
