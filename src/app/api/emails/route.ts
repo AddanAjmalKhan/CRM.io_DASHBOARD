@@ -188,12 +188,17 @@ export async function GET(request: NextRequest) {
 
       const extractedEmail = extractEmailFromBody(first.body)
       const extractedName  = extractNameFromBody(first.body)
-      const leadEmail = isMine(first.from.email)
-        ? (first.to[0] ?? '')
-        : (first.replyTo || extractedEmail || first.from.email)
-      const leadName  = isMine(first.from.email)
-        ? leadEmail.split('@')[0]
-        : (extractedName || first.from.name || first.from.email.split('@')[0])
+      // Self-notification: email sent from & to the firm's own address (e.g. SMTP contact form)
+      const isSelfNotification = isMine(first.from.email) && first.to.every((t: string) => isMine(t))
+      const leadEmail = isSelfNotification
+        ? (first.replyTo || extractedEmail || first.to.find((t: string) => !isMine(t)) || first.to[0] || '')
+        : isMine(first.from.email)
+          ? (first.to[0] ?? '')
+          : (first.replyTo || extractedEmail || first.from.email)
+      const leadName = extractedName ||
+        (isMine(first.from.email)
+          ? leadEmail.split('@')[0]
+          : (first.from.name || first.from.email.split('@')[0]))
 
       threads.push({
         id:        first.uid,
