@@ -2,6 +2,13 @@ import { ImapFlow } from 'imapflow'
 import { simpleParser } from 'mailparser'
 import nodemailer from 'nodemailer'
 import { NextResponse, type NextRequest } from 'next/server'
+import { Redis } from '@upstash/redis'
+
+const redis = new Redis({
+  url: process.env.KV_REST_API_URL!,
+  token: process.env.KV_REST_API_TOKEN!,
+})
+const CACHE_TTL = 120 // seconds
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -75,6 +82,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       error: `Email not configured. Add ${cfg.passKey} to your Vercel environment variables.`,
     }, { status: 503 })
+  }
+
+  // Return cached result unless ?refresh=true
+  const forceRefresh = request.nextUrl.searchParams.get('refresh') === 'true'
+  const cacheKey = `emails:${account}`
+  if (!forceRefresh) {
+    try {
+      const cached = await redis.get(cacheKey)
+      if (cached) return NextResponse.json(cached, { headers: { 'X-Cache': 'HIT' } })
+    } catch { /* cache unavailable, fall through to IMAP */ }
   }
 
   const client = new ImapFlow({
@@ -181,7 +198,10 @@ export async function GET(request: NextRequest) {
 
     threads.sort((a: any, b: any) => (b.lastDate ?? 0) - (a.lastDate ?? 0))
 
-    return NextResponse.json(threads)
+    // Store in cache
+    try { await redis.set(cacheKey, threads, { ex: CACHE_TTL }) } catch { /* non-fatal */ }
+
+    return NextResponse.json(threads, { headers: { 'X-Cache': 'MISS' } })
   } catch (err: any) {
     try { await client.logout() } catch {}
     console.error('[emails] IMAP error:', err.message)
@@ -257,6 +277,7 @@ export async function DELETE(request: NextRequest) {
       } catch {} finally { try { lock?.release() } catch {} }
     }
     await client.logout()
+    try { await redis.del(`emails:${account}`) } catch { /* non-fatal */ }
   } catch { try { await client.logout() } catch {} }
   return NextResponse.json({ success: true })
 }
@@ -308,6 +329,9 @@ export async function POST(request: NextRequest) {
       }
       await saveClient.logout()
     } catch { /* non-fatal — email was sent, just not saved to Sent folder */ }
+
+    // Invalidate cache so next fetch sees the sent message
+    try { await redis.del(`emails:${account}`) } catch { /* non-fatal */ }
 
     return NextResponse.json({ success: true })
   } catch (err: any) {
