@@ -10,7 +10,7 @@ export const PAYMENT_TYPES = ["TailoredPay", "Stripe", "Nexio-AUTH", "PayArc-AUT
 export const CURRENCIES    = ["Dollar", "Euro", "British Pound", "Canadian Dollar"];
 export const INVOICE_SOURCES = ["IntelTrademark", "Office101", "Office102"];
 export const CURRENCY_SYM: Record<string, string> = {
-  "Dollar": "$", "Euro": "", "British Pound": "£", "Canadian Dollar": "CA$",
+  "Dollar": "$", "Euro": "€", "British Pound": "£", "Canadian Dollar": "CA$",
 };
 
 interface ServiceRow { id: number; name: string; price: string; }
@@ -23,6 +23,7 @@ export interface InvoiceFormData {
   paymentType: string;
   currency: string;
   dueDate: string;
+  salesBy: string;
   services: { name: string; price: number }[];
 }
 
@@ -78,16 +79,6 @@ function SelectField({ label, value, onChange, options }: {
   );
 }
 
-const EMPTY_FORM = (): {
-  clientEmail: string; clientName: string; clientPhone: string;
-  paymentType: string; currency: string; dueDate: string;
-  services: ServiceRow[];
-} => ({
-  clientEmail: "", clientName: "", clientPhone: "",
-  paymentType: "TailoredPay", currency: "Dollar", dueDate: "",
-  services: [{ id: 1, name: "", price: "" }],
-});
-
 export function AddInvoiceModal({ open, onClose, onGenerate, initialData }: Props) {
   const isEdit = !!initialData;
 
@@ -98,6 +89,7 @@ export function AddInvoiceModal({ open, onClose, onGenerate, initialData }: Prop
   const [paymentType, setPaymentType] = useState("TailoredPay");
   const [currency,    setCurrency]    = useState("Dollar");
   const [dueDate,     setDueDate]     = useState("");
+  const [salesBy,     setSalesBy]     = useState("");
   const [services,    setServices]    = useState<ServiceRow[]>([{ id: 1, name: "", price: "" }]);
   const svcId = useRef(2);
 
@@ -111,14 +103,14 @@ export function AddInvoiceModal({ open, onClose, onGenerate, initialData }: Prop
       setPaymentType(initialData.paymentType);
       setCurrency(initialData.currency);
       setDueDate(initialData.dueDate);
+      setSalesBy(initialData.salesBy ?? "");
       setServices(initialData.services.map((s, i) => ({ id: i + 1, name: s.name, price: String(s.price) })));
       svcId.current = initialData.services.length + 1;
     } else {
-      const f = EMPTY_FORM();
-      setClientEmail(f.clientEmail); setClientName(f.clientName); setClientPhone(f.clientPhone);
+      setClientEmail(""); setClientName(""); setClientPhone("");
       setSource("IntelTrademark");
-      setPaymentType(f.paymentType); setCurrency(f.currency); setDueDate(f.dueDate);
-      setServices(f.services); svcId.current = 2;
+      setPaymentType("TailoredPay"); setCurrency("Dollar"); setDueDate(""); setSalesBy("");
+      setServices([{ id: 1, name: "", price: "" }]); svcId.current = 2;
     }
   }, [open, initialData]);
 
@@ -130,13 +122,8 @@ export function AddInvoiceModal({ open, onClose, onGenerate, initialData }: Prop
 
   if (!open) return null;
 
-  const addService = () => {
-    setServices(p => [...p, { id: svcId.current++, name: "", price: "" }]);
-  };
-  const removeService = (id: number) => {
-    if (services.length === 1) return;
-    setServices(p => p.filter(s => s.id !== id));
-  };
+  const addService = () => setServices(p => [...p, { id: svcId.current++, name: "", price: "" }]);
+  const removeService = (id: number) => { if (services.length > 1) setServices(p => p.filter(s => s.id !== id)); };
   const updateService = (id: number, field: "name" | "price", val: string) =>
     setServices(p => p.map(s => s.id === id ? { ...s, [field]: val } : s));
 
@@ -148,7 +135,7 @@ export function AddInvoiceModal({ open, onClose, onGenerate, initialData }: Prop
     if (valid.length === 0) return;
     onGenerate({
       clientEmail: clientEmail.trim(), clientName: clientName.trim(), clientPhone: clientPhone.trim(),
-      source, paymentType, currency, dueDate,
+      source, paymentType, currency, dueDate, salesBy: salesBy.trim(),
       services: valid.map(s => ({ name: s.name.trim(), price: parseFloat(s.price) || 0 })),
     });
   };
@@ -176,8 +163,8 @@ export function AddInvoiceModal({ open, onClose, onGenerate, initialData }: Prop
 
           {/* Row 1: Client info */}
           <div className="grid grid-cols-3 gap-5">
-            <Field label="Client Email" value={clientEmail} onChange={setClientEmail} type="email" placeholder="client@example.com" />
             <Field label="Client Name"  value={clientName}  onChange={setClientName}  placeholder="Full name" />
+            <Field label="Client Email" value={clientEmail} onChange={setClientEmail} type="email" placeholder="client@example.com" />
             <Field label="Client Phone" value={clientPhone} onChange={setClientPhone} type="tel" placeholder="+1 000 000 0000" />
           </div>
 
@@ -194,6 +181,11 @@ export function AddInvoiceModal({ open, onClose, onGenerate, initialData }: Prop
             </div>
           </div>
 
+          {/* Row 3: Sales By */}
+          <div className="grid grid-cols-3 gap-5">
+            <Field label="Sales By" value={salesBy} onChange={setSalesBy} placeholder="Agent name" />
+          </div>
+
           {/* Services */}
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
@@ -206,7 +198,6 @@ export function AddInvoiceModal({ open, onClose, onGenerate, initialData }: Prop
               </button>
             </div>
 
-            {/* Column headers */}
             <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 160px 40px" }}>
               <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#9ca3af" }}>Service Name</span>
               <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#9ca3af" }}>Price ({CURRENCY_SYM[currency]})</span>
@@ -235,7 +226,6 @@ export function AddInvoiceModal({ open, onClose, onGenerate, initialData }: Prop
               </div>
             ))}
 
-            {/* Running total */}
             {total > 0 && (
               <div className="flex justify-end pt-1">
                 <div className="flex items-center gap-2 px-4 py-2 rounded-xl"

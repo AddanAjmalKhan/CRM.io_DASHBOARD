@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, Copy, Check, ExternalLink } from "lucide-react";
+import { X, Copy, Check, ExternalLink, CheckCircle2, Printer } from "lucide-react";
 import { CURRENCY_SYM } from "./AddInvoiceModal";
 import type { Invoice } from "./InvoicesTable";
+import { printInvoice } from "@/lib/printInvoice";
 
-const NAVY  = "#161642";
+const NAVY   = "#161642";
 const ACCENT = "#2f6bf2";
+const GREEN  = "#16a34a";
 
 function CopyField({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
@@ -20,7 +22,7 @@ function CopyField({ value }: { value: string }) {
       style={{ borderColor: "#e2e8f0", backgroundColor: "#f8fafc" }}>
       <span className="flex-1 text-sm font-mono truncate" style={{ color: NAVY }}>{value}</span>
       <button onClick={copy}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex-shrink-0"
         style={{ backgroundColor: copied ? "#dcfce7" : `${ACCENT}18`, color: copied ? "#16a34a" : ACCENT }}>
         {copied ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy</>}
       </button>
@@ -28,7 +30,16 @@ function CopyField({ value }: { value: string }) {
   );
 }
 
-export function InvoicePreviewModal({ invoice, onClose }: { invoice: Invoice | null; onClose: () => void }) {
+interface Props {
+  invoice: Invoice | null;
+  onClose: () => void;
+  isNew?: boolean;
+  onMarkPaid?: () => Promise<void> | void;
+}
+
+export function InvoicePreviewModal({ invoice, onClose, isNew = false, onMarkPaid }: Props) {
+  const [marking, setMarking] = useState(false);
+
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", h);
@@ -37,8 +48,16 @@ export function InvoicePreviewModal({ invoice, onClose }: { invoice: Invoice | n
 
   if (!invoice) return null;
 
-  const sym    = CURRENCY_SYM[invoice.currency] ?? "$";
-  const link   = `https://pay.businesshub.com/inv/${invoice.invoiceNumber}`;
+  const sym  = CURRENCY_SYM[invoice.currency] ?? "$";
+  const link = `https://pay.businesshub.com/inv/${invoice.invoiceNumber}`;
+  const showMarkPaid = !!onMarkPaid && invoice.status === "Pending";
+
+  const handleMarkPaid = async () => {
+    if (!onMarkPaid) return;
+    setMarking(true);
+    await onMarkPaid();
+    setMarking(false);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6"
@@ -51,8 +70,12 @@ export function InvoicePreviewModal({ invoice, onClose }: { invoice: Invoice | n
         <div className="flex items-center justify-between px-7 py-5 border-b flex-shrink-0"
           style={{ borderColor: "#f1f5f9" }}>
           <div>
-            <h2 className="text-base font-black" style={{ color: NAVY }}>Invoice Generated!</h2>
-            <p className="text-xs mt-0.5" style={{ color: "#9ca3af" }}>Share the link or save the preview below.</p>
+            <h2 className="text-base font-black" style={{ color: NAVY }}>
+              {isNew ? "Invoice Generated!" : "Invoice Preview"}
+            </h2>
+            <p className="text-xs mt-0.5" style={{ color: "#9ca3af" }}>
+              {isNew ? "Share the link or save the preview below." : `Invoice #${invoice.invoiceNumber}`}
+            </p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors">
             <X size={16} style={{ color: "#94a3b8" }} />
@@ -61,11 +84,12 @@ export function InvoicePreviewModal({ invoice, onClose }: { invoice: Invoice | n
 
         <div className="overflow-y-auto flex-1 px-7 py-5 flex flex-col gap-5">
 
-          {/* Generated link */}
+          {/* Invoice link */}
           <div className="flex flex-col gap-2">
             <label className="text-xs font-bold uppercase tracking-wider" style={{ color: "#9ca3af" }}>Invoice Link</label>
             <CopyField value={link} />
-            <a href="#" className="flex items-center gap-1.5 text-xs font-semibold transition-colors hover:underline w-fit"
+            <a href={link} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-xs font-semibold transition-colors hover:underline w-fit"
               style={{ color: ACCENT }}>
               <ExternalLink size={12} /> Open Invoice Page
             </a>
@@ -81,7 +105,7 @@ export function InvoicePreviewModal({ invoice, onClose }: { invoice: Invoice | n
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
                     style={{ backgroundColor: ACCENT, boxShadow: `0 0 16px ${ACCENT}60` }}>
                     <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                      <path d="M10.5 2L4 10H9L7.5 16L14 8H9L10.5 2Z" fill="black" strokeLinejoin="round" />
+                      <path d="M10.5 2L4 10H9L7.5 16L14 8H9L10.5 2Z" fill="white" strokeLinejoin="round" />
                     </svg>
                   </div>
                   <div>
@@ -100,15 +124,19 @@ export function InvoicePreviewModal({ invoice, onClose }: { invoice: Invoice | n
               {/* Invoice meta */}
               <div className="flex gap-6 mt-5">
                 {[
-                  { label: "Date",       value: invoice.date },
-                  { label: "Due Date",   value: invoice.dueDate },
-                  { label: "Status",     value: invoice.status },
-                  { label: "Payment",    value: invoice.paymentType },
+                  { label: "Date",    value: invoice.date },
+                  { label: "Due",     value: invoice.dueDate || "—" },
+                  { label: "Status",  value: invoice.status },
+                  { label: "Payment", value: invoice.paymentType },
                 ].map(({ label, value }) => (
                   <div key={label}>
                     <p className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: "rgba(255,255,255,0.4)" }}>{label}</p>
                     <p className="text-sm font-bold mt-0.5"
-                      style={{ color: label === "Status" && value === "Pending" ? ACCENT : "white" }}>
+                      style={{
+                        color: label === "Status"
+                          ? value === "Paid" ? "#4ade80" : ACCENT
+                          : "white",
+                      }}>
                       {value}
                     </p>
                   </div>
@@ -139,8 +167,6 @@ export function InvoicePreviewModal({ invoice, onClose }: { invoice: Invoice | n
                   </span>
                 </div>
               ))}
-
-              {/* Total */}
               <div className="flex justify-between items-center pt-4 mt-1">
                 <span className="text-sm font-bold uppercase tracking-widest" style={{ color: "#9ca3af" }}>Total</span>
                 <span className="text-xl font-black" style={{ color: NAVY }}>
@@ -150,12 +176,31 @@ export function InvoicePreviewModal({ invoice, onClose }: { invoice: Invoice | n
             </div>
           </div>
 
-          {/* Done button */}
-          <button onClick={onClose}
-            className="w-full py-3 rounded-full font-bold text-white text-sm tracking-widest uppercase transition-opacity hover:opacity-90"
-            style={{ backgroundColor: NAVY }}>
-            Done
-          </button>
+          {/* Action buttons */}
+          <div className="flex flex-col gap-3">
+            {showMarkPaid && (
+              <button
+                onClick={handleMarkPaid}
+                disabled={marking}
+                className="w-full py-3 rounded-full font-bold text-white text-sm tracking-widest uppercase transition-opacity hover:opacity-90 flex items-center justify-center gap-2 disabled:opacity-60"
+                style={{ backgroundColor: GREEN }}>
+                <CheckCircle2 size={16} />
+                {marking ? "Marking as Paid…" : "Mark as Paid"}
+              </button>
+            )}
+            <button
+              onClick={() => printInvoice(invoice)}
+              className="w-full py-3 rounded-full font-bold text-sm tracking-widest uppercase transition-opacity hover:opacity-90 flex items-center justify-center gap-2"
+              style={{ backgroundColor: "#f1f5f9", color: "#374151" }}>
+              <Printer size={15} />
+              Print Invoice
+            </button>
+            <button onClick={onClose}
+              className="w-full py-3 rounded-full font-bold text-sm tracking-widest uppercase transition-opacity hover:opacity-90"
+              style={{ backgroundColor: NAVY, color: "white" }}>
+              {isNew ? "Done" : "Close"}
+            </button>
+          </div>
         </div>
       </div>
     </div>
