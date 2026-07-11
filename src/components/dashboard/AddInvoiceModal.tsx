@@ -6,7 +6,7 @@ import { X, Plus, Trash2 } from "lucide-react";
 const NAVY  = "#161642";
 const ACCENT = "#2f6bf2";
 
-export const PAYMENT_TYPES = ["TailoredPay", "Stripe", "Nexio-AUTH", "PayArc-AUTH", "Cash", "Check", "Bank Transfer"];
+export const PAYMENT_TYPES = ["KurvPay"];
 export const CURRENCIES    = ["Dollar", "Euro", "British Pound", "Canadian Dollar"];
 export const INVOICE_SOURCES = ["IntelTrademark", "Office101", "Office102"];
 export const CURRENCY_SYM: Record<string, string> = {
@@ -86,7 +86,7 @@ export function AddInvoiceModal({ open, onClose, onGenerate, initialData }: Prop
   const [clientName,  setClientName]  = useState("");
   const [clientPhone, setClientPhone] = useState("");
   const [source,      setSource]      = useState("IntelTrademark");
-  const [paymentType, setPaymentType] = useState("TailoredPay");
+  const [paymentType, setPaymentType] = useState("KurvPay");
   const [currency,    setCurrency]    = useState("Dollar");
   const [dueDate,     setDueDate]     = useState("");
   const [salesBy,     setSalesBy]     = useState("");
@@ -109,7 +109,7 @@ export function AddInvoiceModal({ open, onClose, onGenerate, initialData }: Prop
     } else {
       setClientEmail(""); setClientName(""); setClientPhone("");
       setSource("IntelTrademark");
-      setPaymentType("TailoredPay"); setCurrency("Dollar"); setDueDate(""); setSalesBy("");
+      setPaymentType("KurvPay"); setCurrency("Dollar"); setDueDate(""); setSalesBy("");
       setServices([{ id: 1, name: "", price: "" }]); svcId.current = 2;
     }
   }, [open, initialData]);
