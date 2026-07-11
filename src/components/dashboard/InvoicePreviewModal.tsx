@@ -49,7 +49,7 @@ export function InvoicePreviewModal({ invoice, onClose, isNew = false, onMarkPai
   if (!invoice) return null;
 
   const sym  = CURRENCY_SYM[invoice.currency] ?? "$";
-  const link = `https://pay.businesshub.com/inv/${invoice.invoiceNumber}`;
+  const link = invoice.paymentLink ?? `https://pay.businesshub.com/inv/${invoice.invoiceNumber}`;
   const showMarkPaid = !!onMarkPaid && invoice.status === "Pending";
 
   const handleMarkPaid = async () => {

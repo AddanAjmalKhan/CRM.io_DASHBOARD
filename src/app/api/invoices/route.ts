@@ -12,6 +12,50 @@ function formatDate(d: string): string {
   return dt.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
 }
 
+const CURRENCY_ISO: Record<string, string> = {
+  Dollar: 'USD', Euro: 'EUR', 'British Pound': 'GBP', 'Canadian Dollar': 'CAD',
+}
+
+function kurvBase() {
+  const key = process.env.KURV_API_KEY ?? ''
+  return key.startsWith('kp_live_')
+    ? 'https://api.kurv.app'
+    : 'https://api-sandbox.kurv.app'
+}
+
+async function createKurvPaymentLink(invoiceNumber: string, custName: string, custEmail: string, amount: number, currency: string): Promise<{ url: string; transactionId: string } | null> {
+  const key = process.env.KURV_API_KEY
+  if (!key) return null
+  try {
+    const nameParts = (custName ?? '').trim().split(' ')
+    const res = await fetch(`${kurvBase()}/payment-requests`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        request_methods: ['WEB'],
+        customer_first_name: nameParts[0] || custName,
+        customer_last_name: nameParts.slice(1).join(' ') || undefined,
+        email: custEmail || undefined,
+        amount,
+        currency: CURRENCY_ISO[currency] ?? 'USD',
+        fixed_amount: true,
+        reference_number: invoiceNumber,
+        response_url: `${process.env.DASHBOARD_URL ?? 'https://crm-io-dashboard.vercel.app'}/api/webhooks/kurv`,
+      }),
+    })
+    if (!res.ok) {
+      const err = await res.text()
+      console.error('[invoices] Kurv API error:', res.status, err)
+      return null
+    }
+    const data = await res.json()
+    return { url: data.short_url || data.long_url, transactionId: data.transaction_id }
+  } catch (e: any) {
+    console.error('[invoices] Kurv fetch error:', e.message)
+    return null
+  }
+}
+
 function mapRow(inv: any) {
   return {
     id: inv.id,
@@ -28,6 +72,8 @@ function mapRow(inv: any) {
     status: inv.status as 'Pending' | 'Paid',
     paymentVoidDate: inv.payment_void_date ?? undefined,
     salesBy: inv.sales_by,
+    paymentLink: inv.payment_link ?? undefined,
+    kurvTransactionId: inv.kurv_transaction_id ?? undefined,
     services: (inv.invoice_services ?? []).map((s: any) => ({
       name: s.name,
       price: Number(s.price),
@@ -91,6 +137,15 @@ export async function POST(req: NextRequest) {
         price: s.price,
       }))
     )
+  }
+
+  // Create Kurv payment link
+  const kurv = await createKurvPaymentLink(invoiceNumber, custName, custEmail ?? '', amount, currency ?? 'Dollar')
+  if (kurv) {
+    await supabase.from('invoices').update({
+      payment_link: kurv.url,
+      kurv_transaction_id: kurv.transactionId,
+    }).eq('id', inv.id)
   }
 
   const { data: full } = await supabase

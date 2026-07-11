@@ -23,6 +23,8 @@ export interface Invoice {
   status: "Pending" | "Paid";
   paymentVoidDate?: string;
   salesBy: string;
+  paymentLink?: string;
+  kurvTransactionId?: string;
   services: { name: string; price: number }[];
 }
 
