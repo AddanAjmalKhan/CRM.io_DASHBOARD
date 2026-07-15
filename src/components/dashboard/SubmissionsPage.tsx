@@ -106,35 +106,53 @@ export function SubmissionsPage() {
     <div className="flex flex-col min-h-full" style={{ backgroundColor: "#f1f5fb" }}>
 
       {/* ── Page Header ──────────────────────────────────────────── */}
-      <div className="relative overflow-hidden px-8 pt-8 pb-8" style={{ backgroundColor: NAVY }}>
-        {/* Decorative circles */}
-        <div className="absolute -right-16 -top-16 w-64 h-64 rounded-full opacity-10" style={{ backgroundColor: ACCENT }} />
-        <div className="absolute right-48 -bottom-20 w-48 h-48 rounded-full opacity-5" style={{ backgroundColor: "#ffffff" }} />
+      <div className="relative overflow-hidden" style={{ backgroundColor: NAVY, minHeight: 140 }}>
+        {/* Background gradient glow */}
+        <div className="absolute inset-0" style={{ background: `radial-gradient(ellipse at 80% 50%, ${ACCENT}22 0%, transparent 65%)` }} />
+        {/* Subtle dot-grid texture */}
+        <svg className="absolute inset-0 w-full h-full opacity-[0.04]" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="dots" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+              <circle cx="2" cy="2" r="1.5" fill="white" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#dots)" />
+        </svg>
+        {/* Bottom accent line */}
+        <div className="absolute bottom-0 left-0 right-0 h-[3px]" style={{ background: `linear-gradient(90deg, ${ACCENT}, #6d9dff, transparent)` }} />
 
-        <div className="relative flex items-start justify-between">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${ACCENT}30` }}>
-                <Send size={14} style={{ color: ACCENT }} />
-              </div>
-              <span className="text-xs font-bold uppercase tracking-widest" style={{ color: `${ACCENT}cc` }}>Certificate Dispatch</span>
+        <div className="relative flex items-center justify-between px-8 py-7">
+          {/* Left: title block */}
+          <div className="flex items-center gap-5">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg"
+              style={{ background: `linear-gradient(135deg, ${ACCENT}, #6d9dff)` }}>
+              <Send size={20} color="white" />
             </div>
-            <h1 className="text-3xl font-black text-white">New Submission</h1>
-            <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.5)" }}>
-              Generate a Business Hub certificate and email it to your client.
-            </p>
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em] mb-1" style={{ color: `${ACCENT}cc` }}>
+                Certificate Dispatch
+              </p>
+              <h1 className="text-2xl font-black text-white leading-tight">New Submission</h1>
+              <p className="text-sm mt-0.5" style={{ color: "rgba(255,255,255,0.42)" }}>
+                Generate &amp; email a certificate to your client instantly.
+              </p>
+            </div>
           </div>
 
-          {/* Stats chips */}
+          {/* Right: stat pills */}
           {!loadingTemplates && (
-            <div className="flex gap-3 mt-1">
-              <div className="rounded-xl px-4 py-2 text-center" style={{ backgroundColor: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)" }}>
-                <p className="text-lg font-black text-white">{emailTemplates.length}</p>
-                <p className="text-[10px] uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.4)" }}>Email Tpls</p>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5 rounded-full px-4 py-2"
+                style={{ backgroundColor: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)" }}>
+                <Mail size={13} style={{ color: ACCENT }} />
+                <span className="text-white text-sm font-black">{emailTemplates.length}</span>
+                <span className="text-[11px] font-semibold" style={{ color: "rgba(255,255,255,0.38)" }}>email templates</span>
               </div>
-              <div className="rounded-xl px-4 py-2 text-center" style={{ backgroundColor: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)" }}>
-                <p className="text-lg font-black text-white">{pdfTemplates.length}</p>
-                <p className="text-[10px] uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.4)" }}>PDF Tpls</p>
+              <div className="flex items-center gap-2.5 rounded-full px-4 py-2"
+                style={{ backgroundColor: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)" }}>
+                <FileText size={13} style={{ color: ACCENT }} />
+                <span className="text-white text-sm font-black">{pdfTemplates.length}</span>
+                <span className="text-[11px] font-semibold" style={{ color: "rgba(255,255,255,0.38)" }}>PDF templates</span>
               </div>
             </div>
           )}
