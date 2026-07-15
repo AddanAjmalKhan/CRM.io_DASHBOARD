@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, Users, FileText, Settings, UserPlus, Mail, LogOut
+  LayoutDashboard, Users, FileText, Settings, UserPlus, Mail, LogOut, Send, LayoutTemplate
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
@@ -39,6 +39,13 @@ const NAV_CATEGORIES: NavCategory[] = [
     category: "Connection",
     items: [
       { label: "Emails",    href: "/dashboard/emails",   icon: Mail },
+    ]
+  },
+  {
+    category: "Tools",
+    items: [
+      { label: "Submissions", href: "/dashboard/submissions", icon: Send },
+      { label: "Templates",   href: "/dashboard/templates",   icon: LayoutTemplate },
     ]
   },
   {
