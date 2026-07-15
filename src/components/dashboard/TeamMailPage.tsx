@@ -55,6 +55,18 @@ function avatarCls(name: string) {
 const ACCOUNT_COLORS = ["#2f6bf2", "#7c3aed", "#059669", "#d97706", "#e11d48", "#0891b2"];
 function accountColor(id: number) { return ACCOUNT_COLORS[id % ACCOUNT_COLORS.length]; }
 
+function ModalField({ label: lbl, value, onChange, placeholder = "", type = "text" }: {
+  label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{lbl}</label>
+      <input type={type} value={value} placeholder={placeholder} onChange={e => onChange(e.target.value)}
+        className="px-3 py-2.5 rounded-lg text-sm outline-none border border-slate-200 focus:border-slate-300 text-slate-800 transition-all placeholder-slate-400" />
+    </div>
+  );
+}
+
 // ─── Add / Edit Account Modal ─────────────────────────────
 function AccountModal({ open, initial, onClose, onSave }: {
   open: boolean;
@@ -117,18 +129,6 @@ function AccountModal({ open, initial, onClose, onSave }: {
     finally { setSaving(false); }
   };
 
-  function F({ label: lbl, value, onChange, placeholder = "", type = "text" }: {
-    label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string;
-  }) {
-    return (
-      <div className="flex flex-col gap-1">
-        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{lbl}</label>
-        <input type={type} value={value} placeholder={placeholder} onChange={e => onChange(e.target.value)}
-          className="px-3 py-2.5 rounded-lg text-sm outline-none border border-slate-200 focus:border-slate-300 text-slate-800 transition-all placeholder-slate-400" />
-      </div>
-    );
-  }
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
@@ -154,20 +154,20 @@ function AccountModal({ open, initial, onClose, onSave }: {
             </div>
           )}
 
-          <F label="Display Name" value={label} onChange={setLabel} placeholder="e.g. Support Team" />
-          <F label="Email Address" value={email} onChange={setEmail} placeholder="support@yourdomain.com" type="email" />
+          <ModalField label="Display Name" value={label} onChange={setLabel} placeholder="e.g. Support Team" />
+          <ModalField label="Email Address" value={email} onChange={setEmail} placeholder="support@yourdomain.com" type="email" />
 
           <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2"><F label="IMAP Host" value={imapHost} onChange={setImapHost} placeholder="imap.titan.email" /></div>
-            <F label="IMAP Port" value={imapPort} onChange={setImapPort} placeholder="993" />
+            <div className="col-span-2"><ModalField label="IMAP Host" value={imapHost} onChange={setImapHost} placeholder="imap.titan.email" /></div>
+            <ModalField label="IMAP Port" value={imapPort} onChange={setImapPort} placeholder="993" />
           </div>
 
           <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2"><F label="SMTP Host" value={smtpHost} onChange={setSmtpHost} placeholder="smtp.titan.email" /></div>
-            <F label="SMTP Port" value={smtpPort} onChange={setSmtpPort} placeholder="465" />
+            <div className="col-span-2"><ModalField label="SMTP Host" value={smtpHost} onChange={setSmtpHost} placeholder="smtp.titan.email" /></div>
+            <ModalField label="SMTP Port" value={smtpPort} onChange={setSmtpPort} placeholder="465" />
           </div>
 
-          <F label={initial ? "New Password (leave blank to keep)" : "Password"} value={password} onChange={setPassword} placeholder="••••••••" type="password" />
+          <ModalField label={initial ? "New Password (leave blank to keep)" : "Password"} value={password} onChange={setPassword} placeholder="••••••••" type="password" />
 
           {error && <p className="text-xs font-semibold text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
 
