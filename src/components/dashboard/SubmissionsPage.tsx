@@ -105,62 +105,55 @@ export function SubmissionsPage() {
   return (
     <div className="flex flex-col min-h-full" style={{ backgroundColor: "#f1f5fb" }}>
 
-      {/* ── Page Header ──────────────────────────────────────────── */}
-      <div className="relative overflow-hidden" style={{ backgroundColor: NAVY, minHeight: 140 }}>
-        {/* Background gradient glow */}
-        <div className="absolute inset-0" style={{ background: `radial-gradient(ellipse at 80% 50%, ${ACCENT}22 0%, transparent 65%)` }} />
-        {/* Subtle dot-grid texture */}
-        <svg className="absolute inset-0 w-full h-full opacity-[0.04]" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <pattern id="dots" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
-              <circle cx="2" cy="2" r="1.5" fill="white" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#dots)" />
-        </svg>
-        {/* Bottom accent line */}
-        <div className="absolute bottom-0 left-0 right-0 h-[3px]" style={{ background: `linear-gradient(90deg, ${ACCENT}, #6d9dff, transparent)` }} />
-
-        <div className="relative flex items-center justify-between px-8 py-7">
-          {/* Left: title block */}
-          <div className="flex items-center gap-5">
-            <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg"
-              style={{ background: `linear-gradient(135deg, ${ACCENT}, #6d9dff)` }}>
-              <Send size={20} color="white" />
-            </div>
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.18em] mb-1" style={{ color: `${ACCENT}cc` }}>
-                Certificate Dispatch
-              </p>
-              <h1 className="text-2xl font-black text-white leading-tight">New Submission</h1>
-              <p className="text-sm mt-0.5" style={{ color: "rgba(255,255,255,0.42)" }}>
-                Generate &amp; email a certificate to your client instantly.
-              </p>
-            </div>
-          </div>
-
-          {/* Right: stat pills */}
-          {!loadingTemplates && (
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2.5 rounded-full px-4 py-2"
-                style={{ backgroundColor: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)" }}>
-                <Mail size={13} style={{ color: ACCENT }} />
-                <span className="text-white text-sm font-black">{emailTemplates.length}</span>
-                <span className="text-[11px] font-semibold" style={{ color: "rgba(255,255,255,0.38)" }}>email templates</span>
-              </div>
-              <div className="flex items-center gap-2.5 rounded-full px-4 py-2"
-                style={{ backgroundColor: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)" }}>
-                <FileText size={13} style={{ color: ACCENT }} />
-                <span className="text-white text-sm font-black">{pdfTemplates.length}</span>
-                <span className="text-[11px] font-semibold" style={{ color: "rgba(255,255,255,0.38)" }}>PDF templates</span>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ── Body ─────────────────────────────────────────────────── */}
+      {/* ── Body (header card lives inside the same padding) ─────── */}
       <div className="flex-1 p-8">
+
+        {/* ── Page Header Card ─────────────────────────────────────── */}
+        <div className="relative overflow-hidden rounded-2xl mb-6"
+          style={{ background: "linear-gradient(120deg, #eef4ff 0%, #e8f0fe 60%, #f0f5ff 100%)", border: "1px solid #d6e4ff" }}>
+          {/* Soft glow on the right */}
+          <div className="absolute right-0 top-0 bottom-0 w-72 pointer-events-none"
+            style={{ background: `radial-gradient(ellipse at 100% 50%, ${ACCENT}18 0%, transparent 70%)` }} />
+          {/* Left accent bar */}
+          <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl" style={{ backgroundColor: ACCENT }} />
+
+          <div className="relative flex items-center justify-between px-8 py-6">
+            {/* Left: title block */}
+            <div className="flex items-center gap-4">
+              <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md"
+                style={{ background: `linear-gradient(135deg, ${ACCENT}, #6d9dff)` }}>
+                <Send size={18} color="white" />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] mb-0.5" style={{ color: ACCENT }}>
+                  Certificate Dispatch
+                </p>
+                <h1 className="text-xl font-black leading-tight" style={{ color: NAVY }}>New Submission</h1>
+                <p className="text-xs mt-0.5 text-slate-400">
+                  Generate &amp; email a certificate to your client instantly.
+                </p>
+              </div>
+            </div>
+
+            {/* Right: stat pills */}
+            {!loadingTemplates && (
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 rounded-full px-3.5 py-2"
+                  style={{ backgroundColor: "rgba(47,107,242,0.08)", border: `1px solid ${ACCENT}30` }}>
+                  <Mail size={12} style={{ color: ACCENT }} />
+                  <span className="text-sm font-black" style={{ color: NAVY }}>{emailTemplates.length}</span>
+                  <span className="text-[11px] font-semibold text-slate-400">email templates</span>
+                </div>
+                <div className="flex items-center gap-2 rounded-full px-3.5 py-2"
+                  style={{ backgroundColor: "rgba(47,107,242,0.08)", border: `1px solid ${ACCENT}30` }}>
+                  <FileText size={12} style={{ color: ACCENT }} />
+                  <span className="text-sm font-black" style={{ color: NAVY }}>{pdfTemplates.length}</span>
+                  <span className="text-[11px] font-semibold text-slate-400">PDF templates</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
         <div className="max-w-5xl mx-auto grid grid-cols-5 gap-6 items-start">
 
           {/* ── Left: Client Info (3/5) ─────────────────────────── */}
