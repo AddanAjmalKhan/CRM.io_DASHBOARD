@@ -24,7 +24,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   const body = await request.json()
-  const { name, title, subtitle, footer_text } = body
+  const { name, title, subtitle, footer_text, background_url, fields } = body
 
   if (!name?.trim() || !title?.trim()) {
     return NextResponse.json({ error: 'name and title are required' }, { status: 400 })
@@ -38,6 +38,8 @@ export async function POST(request: NextRequest) {
       title: title.trim(),
       subtitle: subtitle?.trim() ?? '',
       footer_text: footer_text?.trim() ?? '',
+      background_url: background_url ?? null,
+      fields: fields ?? [],
     })
     .select()
     .single()
@@ -48,15 +50,17 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   const body = await request.json()
-  const { id, name, title, subtitle, footer_text } = body
+  const { id, name, title, subtitle, footer_text, background_url, fields } = body
 
   if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 })
 
-  const updates: Record<string, string> = {}
+  const updates: Record<string, unknown> = {}
   if (name?.trim()) updates.name = name.trim()
   if (title?.trim()) updates.title = title.trim()
   if (subtitle !== undefined) updates.subtitle = subtitle?.trim() ?? ''
   if (footer_text !== undefined) updates.footer_text = footer_text?.trim() ?? ''
+  if (background_url !== undefined) updates.background_url = background_url
+  if (fields !== undefined) updates.fields = fields
 
   const supabase = adminClient()
   const { data, error } = await supabase

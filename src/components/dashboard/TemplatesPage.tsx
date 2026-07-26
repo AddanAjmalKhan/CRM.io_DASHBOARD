@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Pencil, Trash2, X, Mail, FileText, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Mail, FileText, ChevronDown, ChevronUp, LayoutTemplate } from "lucide-react";
+import { PdfTemplateEditor, PdfFieldConfig } from "@/components/dashboard/PdfTemplateEditor";
 
 const NAVY = "#161642";
 const ACCENT = "#2f6bf2";
@@ -20,6 +21,9 @@ interface PdfTemplate {
   title: string;
   subtitle: string;
   footer_text: string;
+  background_url: string | null;
+  fields: PdfFieldConfig[];
+  orientation?: "portrait" | "landscape";
   created_at: string;
 }
 
@@ -267,16 +271,41 @@ function EmailCard({ tpl, onEdit, onDelete }: { tpl: EmailTemplate; onEdit: () =
 }
 
 // ─── PDF template card ────────────────────────────────────────────────────────
-function PdfCard({ tpl, onEdit, onDelete }: { tpl: PdfTemplate; onEdit: () => void; onDelete: () => void }) {
+function PdfCard({ tpl, onEdit, onDelete, onEditLayout }: {
+  tpl: PdfTemplate;
+  onEdit: () => void;
+  onDelete: () => void;
+  onEditLayout: () => void;
+}) {
   return (
     <div className="rounded-xl border p-5 bg-white flex items-start justify-between gap-4 transition-shadow hover:shadow-sm" style={{ borderColor: "#e8edf5" }}>
       <div className="flex-1 min-w-0">
-        <p className="font-bold text-sm" style={{ color: NAVY }}>{tpl.name}</p>
+        <div className="flex items-center gap-2">
+          <p className="font-bold text-sm" style={{ color: NAVY }}>{tpl.name}</p>
+          {tpl.background_url && (
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: "#dbeafe", color: ACCENT }}>
+              Custom Layout
+            </span>
+          )}
+        </div>
         <p className="text-xs text-slate-500 mt-0.5">Title: {tpl.title}</p>
         {tpl.subtitle && <p className="text-xs text-slate-400 truncate mt-0.5">Subtitle: {tpl.subtitle}</p>}
         {tpl.footer_text && <p className="text-xs text-slate-400 truncate mt-0.5">Footer: {tpl.footer_text}</p>}
+        {tpl.background_url && (
+          <p className="text-xs text-emerald-500 mt-0.5 font-semibold">
+            {(tpl.fields ?? []).length} field{(tpl.fields ?? []).length !== 1 ? "s" : ""} placed
+          </p>
+        )}
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
+        <button
+          onClick={onEditLayout}
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-black transition-colors hover:bg-blue-50"
+          style={{ color: ACCENT, border: `1px solid ${ACCENT}22` }}
+          title="Edit letterhead layout">
+          <LayoutTemplate size={12} />
+          LAYOUT
+        </button>
         <button onClick={onEdit} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-blue-50 transition-colors">
           <Pencil size={13} style={{ color: ACCENT }} />
         </button>
@@ -298,6 +327,7 @@ export function TemplatesPage() {
 
   const [emailModal, setEmailModal] = useState<{ open: boolean; item?: EmailTemplate | null }>({ open: false });
   const [pdfModal, setPdfModal] = useState<{ open: boolean; item?: PdfTemplate | null }>({ open: false });
+  const [editorModal, setEditorModal] = useState<{ open: boolean; tpl?: PdfTemplate | null }>({ open: false });
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; name: string; onConfirm: () => Promise<void> }>({ open: false, name: "", onConfirm: async () => {} });
   const [deleting, setDeleting] = useState(false);
 
@@ -426,6 +456,7 @@ export function TemplatesPage() {
                   key={tpl.id} tpl={tpl}
                   onEdit={() => setPdfModal({ open: true, item: tpl })}
                   onDelete={() => handleDeletePdf(tpl)}
+                  onEditLayout={() => setEditorModal({ open: true, tpl })}
                 />
               ))
             )}
@@ -440,6 +471,17 @@ export function TemplatesPage() {
         onClose={() => setDeleteModal(p => ({ ...p, open: false }))}
         onConfirm={deleteModal.onConfirm}
       />
+      {editorModal.open && editorModal.tpl && (
+        <PdfTemplateEditor
+          open={editorModal.open}
+          templateId={editorModal.tpl.id}
+          templateName={editorModal.tpl.name}
+          initialBackground={editorModal.tpl.background_url}
+          initialFields={editorModal.tpl.fields}
+          onClose={() => setEditorModal({ open: false })}
+          onSaved={fetchAll}
+        />
+      )}
     </div>
   );
 }

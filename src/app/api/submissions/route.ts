@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { generateCertificatePdf } from '@/lib/generateCertificatePdf'
+import { generateTemplatePdf } from '@/lib/generateTemplatePdf'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -71,9 +72,25 @@ export async function POST(request: NextRequest) {
       </div>
     `
 
+    const submissionVars = {
+      firstName,
+      lastName,
+      businessName,
+      serialNumber,
+      email,
+      fullName: `${firstName} ${lastName}`,
+      date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+    }
+
     const pdfBuffers = await Promise.all(
-      pdfTpls.map(tpl =>
-        generateCertificatePdf({
+      pdfTpls.map(tpl => {
+        if (tpl.background_url) {
+          return generateTemplatePdf(
+            { backgroundUrl: tpl.background_url, fields: tpl.fields ?? [], orientation: tpl.orientation ?? 'portrait' },
+            submissionVars
+          )
+        }
+        return generateCertificatePdf({
           firstName,
           lastName,
           businessName,
@@ -82,7 +99,7 @@ export async function POST(request: NextRequest) {
           subtitle: tpl.subtitle ?? '',
           footerText: tpl.footer_text ?? '',
         })
-      )
+      })
     )
 
     const attachments = pdfTpls.map((tpl, i) => ({
