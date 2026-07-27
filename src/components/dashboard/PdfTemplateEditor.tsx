@@ -42,6 +42,113 @@ const PDF_W = { portrait: 595.28, landscape: 841.89 };
 const CANVAS_W = { portrait: 340, landscape: 480 };
 const CANVAS_H = { portrait: 481, landscape: 340 };
 
+// ─── Floating formatting toolbar (appears on canvas above selected block) ────
+function FloatingToolbar({
+  field,
+  onChange,
+}: {
+  field: PdfFieldConfig;
+  onChange: (f: PdfFieldConfig) => void;
+}) {
+  const set = (patch: Partial<PdfFieldConfig>) => onChange({ ...field, ...patch });
+  const btnBase: React.CSSProperties = {
+    padding: "3px 7px", borderRadius: 5, fontSize: 11, fontWeight: 700,
+    cursor: "pointer", border: "none", transition: "background 0.15s",
+  };
+  const active: React.CSSProperties = { backgroundColor: ACCENT, color: "#fff" };
+  const inactive: React.CSSProperties = { backgroundColor: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.85)" };
+  const sep: React.CSSProperties = { width: 1, height: 16, backgroundColor: "rgba(255,255,255,0.15)", flexShrink: 0 };
+
+  return (
+    <div
+      onMouseDown={e => e.stopPropagation()}
+      style={{
+        position: "absolute",
+        left: `${field.x}%`,
+        top: `${field.y}%`,
+        transform: "translate(-50%, calc(-100% - 10px))",
+        zIndex: 50,
+        backgroundColor: NAVY,
+        borderRadius: 8,
+        padding: "5px 8px",
+        display: "flex",
+        alignItems: "center",
+        gap: 4,
+        boxShadow: "0 4px 16px rgba(0,0,0,0.35)",
+        userSelect: "none",
+        whiteSpace: "nowrap",
+      }}>
+      {/* Bold */}
+      <button style={{ ...btnBase, ...(field.bold ? active : inactive), fontWeight: 900 }}
+        onClick={() => set({ bold: !field.bold })}>B</button>
+
+      <div style={sep} />
+
+      {/* Align */}
+      {(["left", "center", "right"] as const).map(a => (
+        <button key={a} style={{ ...btnBase, ...(field.align === a ? active : inactive) }}
+          onClick={() => set({ align: a })}>
+          {a === "left" ? (
+            <svg width="12" height="10" viewBox="0 0 12 10" fill="currentColor">
+              <rect x="0" y="0" width="12" height="1.5" rx="0.75"/>
+              <rect x="0" y="3" width="9" height="1.5" rx="0.75"/>
+              <rect x="0" y="6" width="12" height="1.5" rx="0.75"/>
+              <rect x="0" y="9" width="7" height="1.5" rx="0.75"/>
+            </svg>
+          ) : a === "center" ? (
+            <svg width="12" height="10" viewBox="0 0 12 10" fill="currentColor">
+              <rect x="0" y="0" width="12" height="1.5" rx="0.75"/>
+              <rect x="1.5" y="3" width="9" height="1.5" rx="0.75"/>
+              <rect x="0" y="6" width="12" height="1.5" rx="0.75"/>
+              <rect x="2.5" y="9" width="7" height="1.5" rx="0.75"/>
+            </svg>
+          ) : (
+            <svg width="12" height="10" viewBox="0 0 12 10" fill="currentColor">
+              <rect x="0" y="0" width="12" height="1.5" rx="0.75"/>
+              <rect x="3" y="3" width="9" height="1.5" rx="0.75"/>
+              <rect x="0" y="6" width="12" height="1.5" rx="0.75"/>
+              <rect x="5" y="9" width="7" height="1.5" rx="0.75"/>
+            </svg>
+          )}
+        </button>
+      ))}
+
+      <div style={sep} />
+
+      {/* Font size */}
+      <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+        <button style={{ ...btnBase, ...inactive, padding: "3px 5px" }}
+          onClick={() => set({ fontSize: Math.max(6, field.fontSize - 1) })}>−</button>
+        <input
+          type="number" min={6} max={200} value={field.fontSize}
+          onChange={e => set({ fontSize: Number(e.target.value) })}
+          onMouseDown={e => e.stopPropagation()}
+          style={{
+            width: 36, fontSize: 11, color: "white", fontWeight: 700,
+            backgroundColor: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)",
+            borderRadius: 4, padding: "2px 4px", textAlign: "center", outline: "none",
+          }} />
+        <button style={{ ...btnBase, ...inactive, padding: "3px 5px" }}
+          onClick={() => set({ fontSize: Math.min(200, field.fontSize + 1) })}>+</button>
+      </div>
+
+      <div style={sep} />
+
+      {/* Color */}
+      <label style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer" }}>
+        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", fontWeight: 700 }}>Color</span>
+        <span style={{
+          width: 18, height: 18, borderRadius: 4, border: "2px solid rgba(255,255,255,0.3)",
+          backgroundColor: field.color, display: "inline-block", flexShrink: 0,
+        }} />
+        <input type="color" value={field.color} onChange={e => set({ color: e.target.value })}
+          onMouseDown={e => e.stopPropagation()}
+          style={{ position: "absolute", opacity: 0, width: 0, height: 0 }} />
+      </label>
+    </div>
+  );
+}
+
 // ─── Sidebar field editor ────────────────────────────────────────────────────
 function FieldEditor({
   field,
@@ -71,81 +178,93 @@ function FieldEditor({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Text body */}
+
+      {/* ── Formatting toolbar (prominent, at the top) ── */}
+      <div className="rounded-xl p-3 flex flex-col gap-3" style={{ backgroundColor: "#f8fafc", border: "1px solid #e8edf5" }}>
+        <p className="text-[10px] font-black uppercase tracking-wider" style={{ color: NAVY }}>Formatting</p>
+
+        {/* Row 1: Bold + Align */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <button onClick={() => set({ bold: !field.bold })}
+            className="px-3 py-1.5 rounded-lg text-xs font-black transition-colors"
+            style={{ backgroundColor: field.bold ? NAVY : "#e2e8f0", color: field.bold ? "#fff" : "#475569" }}
+            title="Bold">
+            <strong>B</strong>
+          </button>
+          <div className="w-px h-5 mx-0.5" style={{ backgroundColor: "#e2e8f0" }} />
+          {(["left", "center", "right"] as const).map(a => (
+            <button key={a} onClick={() => set({ align: a })}
+              className="px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors"
+              title={`Align ${a}`}
+              style={{ backgroundColor: field.align === a ? ACCENT : "#e2e8f0", color: field.align === a ? "#fff" : "#475569" }}>
+              {a === "left" ? "≡L" : a === "center" ? "≡C" : "≡R"}
+            </button>
+          ))}
+        </div>
+
+        {/* Row 2: Font size + Color */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 flex-1">
+            <label className="text-[10px] font-bold text-slate-400 flex-shrink-0">Size</label>
+            <button onClick={() => set({ fontSize: Math.max(6, field.fontSize - 1) })}
+              className="w-6 h-6 rounded flex items-center justify-center text-sm font-bold hover:bg-slate-200 transition-colors"
+              style={{ color: "#64748b" }}>−</button>
+            <input type="number" min={6} max={200} value={field.fontSize}
+              onChange={e => set({ fontSize: Number(e.target.value) })}
+              className="w-12 rounded px-1 py-1 text-xs font-bold text-center outline-none"
+              style={{ border: "1.5px solid #e2e8f0", color: NAVY }} />
+            <button onClick={() => set({ fontSize: Math.min(200, field.fontSize + 1) })}
+              className="w-6 h-6 rounded flex items-center justify-center text-sm font-bold hover:bg-slate-200 transition-colors"
+              style={{ color: "#64748b" }}>+</button>
+            <span className="text-[10px] text-slate-400">pt</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <label className="text-[10px] font-bold text-slate-400">Color</label>
+            <label className="cursor-pointer" title="Pick color">
+              <span className="block w-7 h-7 rounded-lg border-2"
+                style={{ backgroundColor: field.color, borderColor: "#e2e8f0" }} />
+              <input type="color" value={field.color} onChange={e => set({ color: e.target.value })}
+                className="sr-only" />
+            </label>
+          </div>
+        </div>
+
+        {/* Row 3: Width */}
+        <div className="flex items-center gap-3">
+          <label className="text-[10px] font-bold text-slate-400 flex-shrink-0">Width</label>
+          <input type="range" min={10} max={100} step={5} value={field.maxWidth}
+            onChange={e => set({ maxWidth: Number(e.target.value) })}
+            className="flex-1" style={{ accentColor: ACCENT }} />
+          <span className="text-[10px] font-bold text-slate-500 w-8 text-right">{field.maxWidth}%</span>
+        </div>
+      </div>
+
+      {/* ── Text body ── */}
       <div className="flex flex-col gap-1.5">
         <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Text Content</label>
         <textarea
           ref={taRef}
           value={field.text}
           onChange={e => set({ text: e.target.value })}
-          rows={5}
+          rows={4}
           placeholder={"e.g. Congratulations {{fullName}},\nthis is your certificate\nfor {{businessName}}."}
           className="w-full rounded-lg px-3 py-2 text-xs outline-none resize-y"
           style={{ border: `1.5px solid ${ACCENT}`, color: NAVY, fontFamily: "monospace", lineHeight: 1.6 }}
         />
       </div>
 
-      {/* Variable chips */}
+      {/* ── Variable chips ── */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Insert Variable (click to add)</label>
+        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Insert Variable</label>
         <div className="flex flex-wrap gap-1.5">
           {VARIABLES.map(v => (
-            <button
-              key={v.key}
-              onClick={() => insertVar(v.key)}
+            <button key={v.key} onClick={() => insertVar(v.key)}
               className="px-2 py-1 rounded-full text-[10px] font-bold transition-opacity hover:opacity-75"
               style={{ backgroundColor: "#dbeafe", color: ACCENT }}>
               {`{{${v.key}}}`}
             </button>
           ))}
         </div>
-      </div>
-
-      {/* Font size */}
-      <div className="flex items-center gap-3">
-        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 w-20 flex-shrink-0">Font Size</label>
-        <input type="number" min={6} max={200} value={field.fontSize}
-          onChange={e => set({ fontSize: Number(e.target.value) })}
-          className="flex-1 rounded-lg px-2 py-1.5 text-xs font-semibold outline-none text-center"
-          style={{ border: "1.5px solid #e2e8f0", color: NAVY }} />
-        <span className="text-xs text-slate-400">pt</span>
-      </div>
-
-      {/* Color */}
-      <div className="flex items-center gap-3">
-        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 w-20 flex-shrink-0">Color</label>
-        <input type="color" value={field.color} onChange={e => set({ color: e.target.value })}
-          className="w-8 h-7 rounded cursor-pointer border" style={{ borderColor: "#e2e8f0" }} />
-        <span className="text-xs text-slate-400 font-mono">{field.color}</span>
-      </div>
-
-      {/* Bold + align */}
-      <div className="flex items-center gap-2">
-        <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 w-20 flex-shrink-0">Style</label>
-        <button onClick={() => set({ bold: !field.bold })}
-          className="px-2.5 py-1 rounded text-xs font-black transition-colors"
-          style={{ backgroundColor: field.bold ? NAVY : "#f1f5f9", color: field.bold ? "#fff" : "#64748b" }}>
-          B
-        </button>
-        {(["left", "center", "right"] as const).map(a => (
-          <button key={a} onClick={() => set({ align: a })}
-            className="px-2 py-1 rounded text-[10px] font-bold transition-colors"
-            style={{ backgroundColor: field.align === a ? ACCENT : "#f1f5f9", color: field.align === a ? "#fff" : "#64748b" }}>
-            {a === "left" ? "L" : a === "center" ? "C" : "R"}
-          </button>
-        ))}
-      </div>
-
-      {/* Max width */}
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Text Width</label>
-          <span className="text-[10px] font-bold text-slate-500">{field.maxWidth}%</span>
-        </div>
-        <input type="range" min={10} max={100} step={5} value={field.maxWidth}
-          onChange={e => set({ maxWidth: Number(e.target.value) })}
-          className="w-full" style={{ accentColor: ACCENT }} />
-        <p className="text-[10px] text-slate-300">Text wraps when it reaches this width.</p>
       </div>
 
       <button onClick={onDelete}
@@ -406,6 +525,12 @@ export function PdfTemplateEditor({
                     selected={selectedId === f.id}
                     onSelect={() => setSelectedId(f.id)} />
                 ))}
+                {selected && (
+                  <FloatingToolbar
+                    field={selected}
+                    onChange={u => setFields(p => p.map(f => f.id === selected.id ? u : f))}
+                  />
+                )}
                 {fields.length === 0 && (
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                     <p className="text-xs font-bold text-white bg-black/40 px-3 py-1.5 rounded-full">
