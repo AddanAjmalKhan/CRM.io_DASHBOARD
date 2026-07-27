@@ -1,15 +1,15 @@
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
+import { PDFDocument, PDFFont, rgb, StandardFonts } from 'pdf-lib'
 
 export interface PdfFieldConfig {
   id: string
-  variable: string
-  x: number        // 0-100 (% from left)
-  y: number        // 0-100 (% from top)
+  text: string         // full text with {{variable}} placeholders inline
+  x: number            // 0–100 (% from left)
+  y: number            // 0–100 (% from top)
   fontSize: number
-  color: string    // hex e.g. "#161642"
+  color: string        // hex e.g. "#161642"
   bold: boolean
   align: 'left' | 'center' | 'right'
-  label?: string
+  maxWidth: number     // 0–100 (% of page width, for wrapping)
 }
 
 export interface TemplateData {
@@ -36,7 +36,7 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
   return { r: isNaN(r) ? 0 : r, g: isNaN(g) ? 0 : g, b: isNaN(b) ? 0 : b }
 }
 
-function resolveVar(variable: string, vars: SubmissionVars): string {
+function resolveText(text: string, vars: SubmissionVars): string {
   const map: Record<string, string> = {
     firstName: vars.firstName,
     lastName: vars.lastName,
@@ -46,7 +46,30 @@ function resolveVar(variable: string, vars: SubmissionVars): string {
     fullName: vars.fullName ?? `${vars.firstName} ${vars.lastName}`,
     date: vars.date ?? new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
   }
-  return map[variable] ?? variable
+  return text.replace(/\{\{(\w+)\}\}/g, (_, key) => map[key] ?? `{{${key}}}`)
+}
+
+function wrapText(text: string, font: PDFFont, fontSize: number, maxWidthPts: number): string[] {
+  const hardLines = text.split('\n')
+  const result: string[] = []
+
+  for (const line of hardLines) {
+    if (!line.trim()) { result.push(''); continue }
+    const words = line.split(' ')
+    let current = ''
+    for (const word of words) {
+      const candidate = current ? `${current} ${word}` : word
+      if (font.widthOfTextAtSize(candidate, fontSize) <= maxWidthPts) {
+        current = candidate
+      } else {
+        if (current) result.push(current)
+        current = word
+      }
+    }
+    if (current) result.push(current)
+  }
+
+  return result
 }
 
 export async function generateTemplatePdf(
@@ -55,80 +78,62 @@ export async function generateTemplatePdf(
 ): Promise<Buffer> {
   const pdfDoc = await PDFDocument.create()
 
-  // Fetch the background image
   const imgRes = await fetch(template.backgroundUrl)
   if (!imgRes.ok) throw new Error(`Failed to fetch letterhead: ${imgRes.status}`)
   const imgBytes = await imgRes.arrayBuffer()
 
   const url = template.backgroundUrl.toLowerCase()
-  const isPng = url.includes('.png') || url.includes('png')
-  const isJpg = url.includes('.jpg') || url.includes('.jpeg') || url.includes('jpg') || url.includes('jpeg')
-
   let embeddedImg
-  if (isPng) {
+  if (url.includes('.png') || url.includes('png')) {
     embeddedImg = await pdfDoc.embedPng(imgBytes)
-  } else if (isJpg) {
-    embeddedImg = await pdfDoc.embedJpg(imgBytes)
   } else {
-    // Try PNG first, fall back to JPG
-    try {
-      embeddedImg = await pdfDoc.embedPng(imgBytes)
-    } catch {
-      embeddedImg = await pdfDoc.embedJpg(imgBytes)
-    }
+    try { embeddedImg = await pdfDoc.embedJpg(imgBytes) }
+    catch { embeddedImg = await pdfDoc.embedPng(imgBytes) }
   }
 
-  // Create page — use image dimensions or A4
   const isLandscape = template.orientation === 'landscape'
   const pageWidth = isLandscape ? 841.89 : 595.28
   const pageHeight = isLandscape ? 595.28 : 841.89
 
   const page = pdfDoc.addPage([pageWidth, pageHeight])
+  page.drawImage(embeddedImg, { x: 0, y: 0, width: pageWidth, height: pageHeight })
 
-  // Draw background image filling the entire page
-  page.drawImage(embeddedImg, {
-    x: 0,
-    y: 0,
-    width: pageWidth,
-    height: pageHeight,
-  })
-
-  // Load fonts
   const regularFont = await pdfDoc.embedFont(StandardFonts.Helvetica)
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
 
-  // Draw each field
   for (const field of template.fields) {
-    const text = resolveVar(field.variable, vars)
-    if (!text) continue
+    if (!field.text?.trim()) continue
 
+    const resolved = resolveText(field.text, vars)
     const font = field.bold ? boldFont : regularFont
     const fontSize = field.fontSize || 12
     const { r, g, b } = hexToRgb(field.color || '#000000')
 
-    // Convert percentage positions to pdf-lib coordinates
-    // x: % from left → points from left
-    // y: % from top → points from bottom (pdf-lib uses bottom-left origin)
+    const maxWidthPts = ((field.maxWidth ?? 80) / 100) * pageWidth
+    const lines = wrapText(resolved, font, fontSize, maxWidthPts)
+    const lineHeight = fontSize * 1.35
+
     const xPt = (field.x / 100) * pageWidth
-    const yPt = pageHeight - (field.y / 100) * pageHeight
+    const startYPt = pageHeight - (field.y / 100) * pageHeight
 
-    // Handle alignment
-    let drawX = xPt
-    if (field.align === 'center' || field.align === 'right') {
-      const textWidth = font.widthOfTextAtSize(text, fontSize)
-      if (field.align === 'center') drawX = xPt - textWidth / 2
-      else drawX = xPt - textWidth
-    }
+    lines.forEach((line, idx) => {
+      if (!line) return
 
-    page.drawText(text, {
-      x: drawX,
-      y: yPt - fontSize, // baseline adjust
-      size: fontSize,
-      font,
-      color: rgb(r, g, b),
+      let drawX = xPt
+      if (field.align === 'center' || field.align === 'right') {
+        const w = font.widthOfTextAtSize(line, fontSize)
+        drawX = field.align === 'center' ? xPt - w / 2 : xPt - w
+      }
+
+      page.drawText(line, {
+        x: Math.max(0, drawX),
+        y: startYPt - idx * lineHeight - fontSize,
+        size: fontSize,
+        font,
+        color: rgb(r, g, b),
+      })
     })
   }
 
-  const bytes = await pdfDoc.save()
-  return Buffer.from(bytes)
+  return Buffer.from(await pdfDoc.save())
 }

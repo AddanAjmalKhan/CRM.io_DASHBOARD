@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Pencil, Trash2, X, Mail, FileText, ChevronDown, ChevronUp, LayoutTemplate } from "lucide-react";
-import { PdfTemplateEditor, PdfFieldConfig } from "@/components/dashboard/PdfTemplateEditor";
+import { PdfTemplateEditor } from "@/components/dashboard/PdfTemplateEditor";
+import type { PdfFieldConfig } from "@/lib/generateTemplatePdf";
 
 const NAVY = "#161642";
 const ACCENT = "#2f6bf2";
