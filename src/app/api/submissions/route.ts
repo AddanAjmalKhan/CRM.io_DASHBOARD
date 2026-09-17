@@ -15,6 +15,17 @@ function adminClient() {
   )
 }
 
+async function getSenderAccount(id: number) {
+  const supabase = adminClient()
+  const { data, error } = await supabase
+    .from('connected_email_accounts')
+    .select('id, label, email')
+    .eq('id', id)
+    .single()
+  if (error || !data) return null
+  return data as { id: number; label: string; email: string }
+}
+
 function fillVariables(template: string, vars: Record<string, string>): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? `{{${key}}}`)
 }
@@ -29,7 +40,7 @@ function bodyToHtml(text: string): string {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { firstName, lastName, businessName, serialNumber, email, emailTemplateId, pdfTemplateIds } = body
+    const { firstName, lastName, businessName, serialNumber, email, emailTemplateId, pdfTemplateIds, senderId } = body
 
     if (!firstName || !lastName || !businessName || !serialNumber || !email) {
       return NextResponse.json({ error: 'All fields are required' }, { status: 400 })
@@ -108,7 +119,10 @@ export async function POST(request: NextRequest) {
     }))
 
     const apiKey = process.env.RESEND_API_KEY
-    const fromEmail = process.env.RESEND_FROM ?? 'Business Hub <onboarding@resend.dev>'
+    const senderAccount = senderId ? await getSenderAccount(senderId) : null
+    const fromEmail = senderAccount
+      ? `${senderAccount.label} <${senderAccount.email}>`
+      : process.env.RESEND_FROM ?? 'Business Hub <onboarding@resend.dev>'
 
     if (!apiKey) {
       return NextResponse.json({ error: 'RESEND_API_KEY not configured' }, { status: 500 })

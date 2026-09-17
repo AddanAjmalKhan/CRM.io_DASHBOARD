@@ -9,6 +9,7 @@ const ACCENT = "#2f6bf2";
 
 interface EmailTemplate { id: number; name: string; subject: string; }
 interface PdfTemplate   { id: number; name: string; title: string; }
+interface SenderAccount { id: number; label: string; email: string; }
 
 function InputField({ label, value, onChange, placeholder = "", type = "text", icon: Icon }: {
   label: string; value: string; onChange: (v: string) => void;
@@ -48,9 +49,11 @@ export function SubmissionsPage() {
   const [email,        setEmail]        = useState("");
   const [emailTemplateId,  setEmailTemplateId]  = useState<number | "">("");
   const [pdfTemplateIds,   setPdfTemplateIds]   = useState<number[]>([]);
+  const [senderId,         setSenderId]         = useState<number | "">("");
 
   const [emailTemplates, setEmailTemplates] = useState<EmailTemplate[]>([]);
   const [pdfTemplates,   setPdfTemplates]   = useState<PdfTemplate[]>([]);
+  const [senderAccounts, setSenderAccounts] = useState<SenderAccount[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(true);
 
   const [submitting, setSubmitting] = useState(false);
@@ -58,14 +61,19 @@ export function SubmissionsPage() {
 
   const fetchTemplates = useCallback(async () => {
     setLoadingTemplates(true);
-    const [eRes, pRes] = await Promise.all([fetch("/api/email-templates"), fetch("/api/pdf-templates")]);
-    const [eData, pData] = await Promise.all([eRes.json(), pRes.json()]);
-    const eTpls: EmailTemplate[] = eData.templates ?? [];
-    const pTpls: PdfTemplate[]   = pData.templates ?? [];
+    const [eRes, pRes, aRes] = await Promise.all([
+      fetch("/api/email-templates"), fetch("/api/pdf-templates"), fetch("/api/team-mail-accounts"),
+    ]);
+    const [eData, pData, aData] = await Promise.all([eRes.json(), pRes.json(), aRes.json()]);
+    const eTpls: EmailTemplate[]   = eData.templates ?? [];
+    const pTpls: PdfTemplate[]     = pData.templates ?? [];
+    const accts: SenderAccount[]   = aData.accounts ?? [];
     setEmailTemplates(eTpls);
     setPdfTemplates(pTpls);
+    setSenderAccounts(accts);
     if (eTpls.length > 0) setEmailTemplateId(eTpls[0].id);
     if (pTpls.length > 0) setPdfTemplateIds([pTpls[0].id]);
+    if (accts.length > 0) setSenderId(accts[0].id);
     setLoadingTemplates(false);
   }, []);
 
@@ -78,6 +86,7 @@ export function SubmissionsPage() {
     setFirstName(""); setLastName(""); setBusinessName(""); setSerialNumber(""); setEmail("");
     if (emailTemplates.length > 0) setEmailTemplateId(emailTemplates[0].id);
     if (pdfTemplates.length > 0) setPdfTemplateIds([pdfTemplates[0].id]);
+    if (senderAccounts.length > 0) setSenderId(senderAccounts[0].id);
   };
 
   const handleSubmit = async () => {
@@ -86,13 +95,14 @@ export function SubmissionsPage() {
     }
     if (!emailTemplateId) { setResult({ ok: false, message: "Please select an email template." }); return; }
     if (!pdfTemplateIds.length) { setResult({ ok: false, message: "Select at least one PDF to attach." }); return; }
+    if (senderAccounts.length > 0 && !senderId) { setResult({ ok: false, message: "Please choose a sending email." }); return; }
 
     setSubmitting(true); setResult(null);
     try {
       const res = await fetch("/api/submissions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ firstName: firstName.trim(), lastName: lastName.trim(), businessName: businessName.trim(), serialNumber: serialNumber.trim(), email: email.trim(), emailTemplateId, pdfTemplateIds }),
+        body: JSON.stringify({ firstName: firstName.trim(), lastName: lastName.trim(), businessName: businessName.trim(), serialNumber: serialNumber.trim(), email: email.trim(), emailTemplateId, pdfTemplateIds, senderId: senderId || undefined }),
       });
       const data = await res.json();
       if (!res.ok) setResult({ ok: false, message: data.error ?? "Failed to send." });
@@ -196,6 +206,46 @@ export function SubmissionsPage() {
             ) : (
               <div className="rounded-2xl bg-white p-6 flex flex-col gap-6 shadow-sm" style={{ border: "1px solid #e8edf5" }}>
 
+                {/* Send From */}
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-2">
+                    <AtSign size={14} style={{ color: ACCENT }} />
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Send From</span>
+                  </div>
+
+                  {senderAccounts.length === 0 ? (
+                    <div className="rounded-xl p-4 text-sm text-slate-400 text-center" style={{ border: "1.5px dashed #e2e8f0" }}>
+                      No mailboxes connected.{" "}
+                      <Link href="/dashboard/emails" className="font-semibold" style={{ color: ACCENT }}>Connect one →</Link>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      {senderAccounts.map(a => (
+                        <button
+                          key={a.id}
+                          onClick={() => setSenderId(a.id)}
+                          className="flex items-center gap-3 rounded-xl px-4 py-3 text-left transition-all"
+                          style={{
+                            border: `1.5px solid ${senderId === a.id ? ACCENT : "#e2e8f0"}`,
+                            backgroundColor: senderId === a.id ? `${ACCENT}08` : "#fafafa",
+                          }}>
+                          <div
+                            className="w-4 h-4 rounded-full flex-shrink-0 flex items-center justify-center border-2"
+                            style={{ borderColor: senderId === a.id ? ACCENT : "#cbd5e1" }}>
+                            {senderId === a.id && (
+                              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: ACCENT }} />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold truncate" style={{ color: NAVY }}>{a.label}</p>
+                            <p className="text-xs text-slate-400 truncate">{a.email}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 {/* Email template */}
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center gap-2">
@@ -296,6 +346,7 @@ export function SubmissionsPage() {
                 <Row label="Business" value={businessName || "—"} />
                 <Row label="Email"    value={email || "—"} />
                 <Row label="Serial"   value={serialNumber || "—"} />
+                <Row label="Sent From" value={senderAccounts.find(a => a.id === senderId)?.label ?? "—"} />
               </div>
 
               <div className="border-t pt-4 flex flex-col gap-2" style={{ borderColor: "#f1f5f9" }}>
