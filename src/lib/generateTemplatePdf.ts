@@ -25,7 +25,10 @@ export interface SubmissionVars {
   serialNumber: string
   email: string
   fullName?: string
+  address?: string
+  agentName?: string
   date?: string
+  time?: string
 }
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
@@ -44,7 +47,10 @@ function resolveText(text: string, vars: SubmissionVars): string {
     serialNumber: vars.serialNumber,
     email: vars.email,
     fullName: vars.fullName ?? `${vars.firstName} ${vars.lastName}`,
-    date: vars.date ?? new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+    address: vars.address ?? '',
+    agentName: vars.agentName ?? '',
+    date: vars.date ?? new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/New_York' }),
+    time: vars.time ?? new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }),
   }
   return text.replace(/\{\{(\w+)\}\}/g, (_, key) => map[key] ?? `{{${key}}}`)
 }

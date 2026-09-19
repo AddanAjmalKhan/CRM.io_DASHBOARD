@@ -3,31 +3,12 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { X, Plus, Trash2, Upload, Image as ImageIcon } from "lucide-react";
 import type { PdfFieldConfig } from "@/lib/generateTemplatePdf";
+import { TEMPLATE_VARIABLES as VARIABLES, TEMPLATE_PREVIEW_VARS as PREVIEW_VARS } from "@/lib/templateVariables";
 
 export type { PdfFieldConfig };
 
 const NAVY = "#161642";
 const ACCENT = "#2f6bf2";
-
-const VARIABLES = [
-  { key: "fullName",      label: "Full Name" },
-  { key: "firstName",     label: "First Name" },
-  { key: "lastName",      label: "Last Name" },
-  { key: "businessName",  label: "Business Name" },
-  { key: "serialNumber",  label: "Serial #" },
-  { key: "email",         label: "Email" },
-  { key: "date",          label: "Date" },
-];
-
-const PREVIEW_VARS: Record<string, string> = {
-  firstName: "John",
-  lastName: "Smith",
-  fullName: "John Smith",
-  businessName: "Smith Enterprises LLC",
-  serialNumber: "BH-2024-001",
-  email: "john@example.com",
-  date: "January 1, 2025",
-};
 
 function resolvePreview(text: string): string {
   return text.replace(/\{\{(\w+)\}\}/g, (_, k) => PREVIEW_VARS[k] ?? `{{${k}}}`);

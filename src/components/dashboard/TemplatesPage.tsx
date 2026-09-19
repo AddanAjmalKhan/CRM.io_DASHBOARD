@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Plus, Pencil, Trash2, X, Mail, FileText, ChevronDown, ChevronUp, LayoutTemplate } from "lucide-react";
 import { PdfTemplateEditor } from "@/components/dashboard/PdfTemplateEditor";
 import type { PdfFieldConfig } from "@/lib/generateTemplatePdf";
+import { TEMPLATE_VARIABLES } from "@/lib/templateVariables";
 
 const NAVY = "#161642";
 const ACCENT = "#2f6bf2";
@@ -28,14 +29,16 @@ interface PdfTemplate {
   created_at: string;
 }
 
-function Field({ label, value, onChange, placeholder = "", type = "text" }: {
+function Field({ label, value, onChange, placeholder = "", type = "text", inputRef }: {
   label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string;
+  inputRef?: React.Ref<HTMLInputElement>;
 }) {
   const [focused, setFocused] = useState(false);
   return (
     <div className="flex flex-col gap-1.5">
       <label className="text-sm font-semibold" style={{ color: NAVY }}>{label}</label>
       <input
+        ref={inputRef}
         type={type} value={value} placeholder={placeholder}
         onChange={e => onChange(e.target.value)}
         onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
@@ -46,21 +49,41 @@ function Field({ label, value, onChange, placeholder = "", type = "text" }: {
   );
 }
 
-function TextArea({ label, value, onChange, placeholder = "", rows = 6 }: {
+function TextArea({ label, value, onChange, placeholder = "", rows = 6, textareaRef }: {
   label: string; value: string; onChange: (v: string) => void; placeholder?: string; rows?: number;
+  textareaRef?: React.Ref<HTMLTextAreaElement>;
 }) {
   const [focused, setFocused] = useState(false);
   return (
     <div className="flex flex-col gap-1.5">
       <label className="text-sm font-semibold" style={{ color: NAVY }}>{label}</label>
       <textarea
+        ref={textareaRef}
         value={value} placeholder={placeholder} rows={rows}
         onChange={e => onChange(e.target.value)}
         onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
         className="rounded-lg px-3 py-2.5 text-sm outline-none transition-all resize-y"
         style={{ border: `1.5px solid ${focused ? ACCENT : "#e2e8f0"}`, boxShadow: focused ? `0 0 0 3px ${ACCENT}18` : "none", color: NAVY, fontFamily: "monospace" }}
       />
-      <p className="text-xs text-slate-400">Variables: {"{{firstName}}"} {"{{lastName}}"} {"{{businessName}}"} {"{{serialNumber}}"}</p>
+    </div>
+  );
+}
+
+// ─── Click-to-insert variable chips ───────────────────────────────────────────
+function VariableChips({ onInsert }: { onInsert: (key: string) => void }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {TEMPLATE_VARIABLES.map(v => (
+        <button
+          key={v.key}
+          type="button"
+          onClick={() => onInsert(v.key)}
+          className="px-2 py-1 rounded-full text-[10px] font-bold transition-colors"
+          style={{ backgroundColor: `${ACCENT}14`, color: ACCENT }}
+        >
+          {`{{${v.key}}}`}
+        </button>
+      ))}
     </div>
   );
 }
@@ -77,6 +100,8 @@ function EmailModal({ open, onClose, initial, onSave }: {
   const [body, setBody] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const subjectRef = useRef<HTMLInputElement>(null);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (open) {
@@ -86,6 +111,25 @@ function EmailModal({ open, onClose, initial, onSave }: {
       setError("");
     }
   }, [open, initial]);
+
+  function insertVarAt(
+    ref: React.RefObject<HTMLInputElement | HTMLTextAreaElement | null>,
+    value: string,
+    setValue: (v: string) => void,
+    key: string
+  ) {
+    const el = ref.current;
+    const token = `{{${key}}}`;
+    if (!el) { setValue(value + token); return; }
+    const s = el.selectionStart ?? value.length;
+    const e = el.selectionEnd ?? value.length;
+    const next = value.slice(0, s) + token + value.slice(e);
+    setValue(next);
+    setTimeout(() => {
+      el.focus();
+      el.setSelectionRange(s + token.length, s + token.length);
+    }, 0);
+  }
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -124,9 +168,15 @@ function EmailModal({ open, onClose, initial, onSave }: {
         </div>
         <div className="overflow-y-auto flex-1 px-7 py-6 flex flex-col gap-4">
           <Field label="Template Name" value={name} onChange={setName} placeholder="e.g. Certificate Delivery" />
-          <Field label="Email Subject" value={subject} onChange={setSubject} placeholder="e.g. Your Certificate — {{businessName}}" />
-          <TextArea label="Email Body" value={body} onChange={setBody} rows={8}
-            placeholder={"Dear {{firstName}} {{lastName}},\n\nPlease find your certificate attached.\n\nBest regards,\nBusiness Hub Team"} />
+          <div className="flex flex-col gap-1.5">
+            <Field label="Email Subject" value={subject} onChange={setSubject} placeholder="e.g. Your Certificate — {{businessName}}" inputRef={subjectRef} />
+            <VariableChips onInsert={key => insertVarAt(subjectRef, subject, setSubject, key)} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <TextArea label="Email Body" value={body} onChange={setBody} rows={8} textareaRef={bodyRef}
+              placeholder={"Dear {{firstName}} {{lastName}},\n\nPlease find your certificate attached.\n\nBest regards,\nBusiness Hub Team"} />
+            <VariableChips onInsert={key => insertVarAt(bodyRef, body, setBody, key)} />
+          </div>
           {error && <p className="text-sm text-red-500">{error}</p>}
           <button onClick={handleSave} disabled={saving}
             className="w-full py-3 rounded-full font-black text-white tracking-widest uppercase text-sm transition-opacity hover:opacity-90 disabled:opacity-50"

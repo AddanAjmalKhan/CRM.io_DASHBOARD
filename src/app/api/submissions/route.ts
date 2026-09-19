@@ -40,7 +40,7 @@ function bodyToHtml(text: string): string {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { firstName, lastName, businessName, serialNumber, email, emailTemplateId, pdfTemplateIds, senderId } = body
+    const { firstName, lastName, businessName, serialNumber, email, emailTemplateId, pdfTemplateIds, senderId, address, agentName, senderAlias } = body
 
     if (!firstName || !lastName || !businessName || !serialNumber || !email) {
       return NextResponse.json({ error: 'All fields are required' }, { status: 400 })
@@ -73,7 +73,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'PDF template(s) not found' }, { status: 404 })
     }
 
-    const vars = { firstName, lastName, businessName, serialNumber, email }
+    const now = new Date()
+    const vars = {
+      firstName,
+      lastName,
+      businessName,
+      serialNumber,
+      email,
+      fullName: `${firstName} ${lastName}`,
+      address: address ?? '',
+      agentName: agentName ?? '',
+      date: now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/New_York' }),
+      time: now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }),
+    }
 
     const filledSubject = fillVariables(emailTpl.subject, vars)
     const filledBody = fillVariables(emailTpl.body, vars)
@@ -83,22 +95,12 @@ export async function POST(request: NextRequest) {
       </div>
     `
 
-    const submissionVars = {
-      firstName,
-      lastName,
-      businessName,
-      serialNumber,
-      email,
-      fullName: `${firstName} ${lastName}`,
-      date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-    }
-
     const pdfBuffers = await Promise.all(
       pdfTpls.map(tpl => {
         if (tpl.background_url) {
           return generateTemplatePdf(
             { backgroundUrl: tpl.background_url, fields: tpl.fields ?? [], orientation: tpl.orientation ?? 'portrait' },
-            submissionVars
+            vars
           )
         }
         return generateCertificatePdf({
@@ -120,8 +122,9 @@ export async function POST(request: NextRequest) {
 
     const apiKey = process.env.RESEND_API_KEY
     const senderAccount = senderId ? await getSenderAccount(senderId) : null
+    const displayName = senderAccount ? (senderAlias?.trim() || senderAccount.label) : null
     const fromEmail = senderAccount
-      ? `${senderAccount.label} <${senderAccount.email}>`
+      ? `${displayName} <${senderAccount.email}>`
       : process.env.RESEND_FROM ?? 'Business Hub <onboarding@resend.dev>'
 
     if (!apiKey) {

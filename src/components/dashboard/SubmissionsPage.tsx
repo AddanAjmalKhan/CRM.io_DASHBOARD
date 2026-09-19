@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Send, CheckCircle, AlertCircle, User, Mail, FileText, Hash, Building2, AtSign } from "lucide-react";
+import { Send, CheckCircle, AlertCircle, User, Mail, FileText, Hash, Building2, AtSign, MapPin, UserCircle } from "lucide-react";
 import Link from "next/link";
 
 const NAVY  = "#161642";
@@ -10,6 +10,7 @@ const ACCENT = "#2f6bf2";
 interface EmailTemplate { id: number; name: string; subject: string; }
 interface PdfTemplate   { id: number; name: string; title: string; }
 interface SenderAccount { id: number; label: string; email: string; }
+interface Agent { id: string; name: string; email: string; role: string; }
 
 function InputField({ label, value, onChange, placeholder = "", type = "text", icon: Icon }: {
   label: string; value: string; onChange: (v: string) => void;
@@ -50,10 +51,14 @@ export function SubmissionsPage() {
   const [emailTemplateId,  setEmailTemplateId]  = useState<number | "">("");
   const [pdfTemplateIds,   setPdfTemplateIds]   = useState<number[]>([]);
   const [senderId,         setSenderId]         = useState<number | "">("");
+  const [address,          setAddress]          = useState("");
+  const [agentId,          setAgentId]          = useState<string | "">("");
+  const [senderAlias,      setSenderAlias]      = useState("");
 
   const [emailTemplates, setEmailTemplates] = useState<EmailTemplate[]>([]);
   const [pdfTemplates,   setPdfTemplates]   = useState<PdfTemplate[]>([]);
   const [senderAccounts, setSenderAccounts] = useState<SenderAccount[]>([]);
+  const [agents,          setAgents]        = useState<Agent[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(true);
 
   const [submitting, setSubmitting] = useState(false);
@@ -61,16 +66,18 @@ export function SubmissionsPage() {
 
   const fetchTemplates = useCallback(async () => {
     setLoadingTemplates(true);
-    const [eRes, pRes, aRes] = await Promise.all([
-      fetch("/api/email-templates"), fetch("/api/pdf-templates"), fetch("/api/team-mail-accounts"),
+    const [eRes, pRes, aRes, gRes] = await Promise.all([
+      fetch("/api/email-templates"), fetch("/api/pdf-templates"), fetch("/api/team-mail-accounts"), fetch("/api/agents"),
     ]);
-    const [eData, pData, aData] = await Promise.all([eRes.json(), pRes.json(), aRes.json()]);
+    const [eData, pData, aData, gData] = await Promise.all([eRes.json(), pRes.json(), aRes.json(), gRes.json()]);
     const eTpls: EmailTemplate[]   = eData.templates ?? [];
     const pTpls: PdfTemplate[]     = pData.templates ?? [];
     const accts: SenderAccount[]   = aData.accounts ?? [];
+    const agentList: Agent[]       = Array.isArray(gData) ? gData : [];
     setEmailTemplates(eTpls);
     setPdfTemplates(pTpls);
     setSenderAccounts(accts);
+    setAgents(agentList);
     if (eTpls.length > 0) setEmailTemplateId(eTpls[0].id);
     if (pTpls.length > 0) setPdfTemplateIds([pTpls[0].id]);
     if (accts.length > 0) setSenderId(accts[0].id);
@@ -84,6 +91,7 @@ export function SubmissionsPage() {
 
   const reset = () => {
     setFirstName(""); setLastName(""); setBusinessName(""); setSerialNumber(""); setEmail("");
+    setAddress(""); setAgentId(""); setSenderAlias("");
     if (emailTemplates.length > 0) setEmailTemplateId(emailTemplates[0].id);
     if (pdfTemplates.length > 0) setPdfTemplateIds([pdfTemplates[0].id]);
     if (senderAccounts.length > 0) setSenderId(senderAccounts[0].id);
@@ -102,7 +110,11 @@ export function SubmissionsPage() {
       const res = await fetch("/api/submissions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ firstName: firstName.trim(), lastName: lastName.trim(), businessName: businessName.trim(), serialNumber: serialNumber.trim(), email: email.trim(), emailTemplateId, pdfTemplateIds, senderId: senderId || undefined }),
+        body: JSON.stringify({
+          firstName: firstName.trim(), lastName: lastName.trim(), businessName: businessName.trim(), serialNumber: serialNumber.trim(), email: email.trim(),
+          emailTemplateId, pdfTemplateIds, senderId: senderId || undefined,
+          address: address.trim(), agentName: agents.find(a => a.id === agentId)?.name ?? "", senderAlias: senderAlias.trim() || undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) setResult({ ok: false, message: data.error ?? "Failed to send." });
@@ -184,6 +196,7 @@ export function SubmissionsPage() {
                 <InputField label="Last Name"   value={lastName}   onChange={setLastName}   placeholder="Doe"           icon={User} />
               </div>
               <InputField label="Business Name"  value={businessName} onChange={setBusinessName} placeholder="Acme Corp" icon={Building2} />
+              <InputField label="Address" value={address} onChange={setAddress} placeholder="123 Main St, Suite 400" icon={MapPin} />
               <div className="grid grid-cols-2 gap-4">
                 <InputField label="Email Address" value={email}         onChange={setEmail}         type="email" placeholder="client@example.com" icon={AtSign} />
                 <InputField label="Serial Number" value={serialNumber}  onChange={setSerialNumber}  placeholder="BH-2026-0001" icon={Hash} />
@@ -243,6 +256,40 @@ export function SubmissionsPage() {
                         </button>
                       ))}
                     </div>
+                  )}
+
+                  <input
+                    type="text" value={senderAlias} onChange={e => setSenderAlias(e.target.value)}
+                    placeholder="Sender Name Override (optional) — e.g. Trademark Dept"
+                    className="w-full rounded-xl px-4 py-2.5 text-sm outline-none transition-all"
+                    style={{ border: "1.5px solid #e2e8f0", color: NAVY, backgroundColor: "#fff" }}
+                  />
+                </div>
+
+                {/* Agent */}
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-2">
+                    <UserCircle size={14} style={{ color: ACCENT }} />
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Agent</span>
+                  </div>
+
+                  {agents.length === 0 ? (
+                    <div className="rounded-xl p-4 text-sm text-slate-400 text-center" style={{ border: "1.5px dashed #e2e8f0" }}>
+                      No agents yet.{" "}
+                      <Link href="/dashboard/agents" className="font-semibold" style={{ color: ACCENT }}>Add one →</Link>
+                    </div>
+                  ) : (
+                    <select
+                      value={agentId}
+                      onChange={e => setAgentId(e.target.value)}
+                      className="w-full rounded-xl px-4 py-2.5 text-sm outline-none transition-all"
+                      style={{ border: "1.5px solid #e2e8f0", color: NAVY, backgroundColor: "#fff" }}
+                    >
+                      <option value="">— None —</option>
+                      {agents.map(a => (
+                        <option key={a.id} value={a.id}>{a.name}</option>
+                      ))}
+                    </select>
                   )}
                 </div>
 
@@ -344,9 +391,11 @@ export function SubmissionsPage() {
               <div className="flex flex-col gap-3">
                 <Row label="Name"   value={firstName || lastName ? `${firstName} ${lastName}`.trim() : "—"} />
                 <Row label="Business" value={businessName || "—"} />
+                <Row label="Address"  value={address || "—"} />
                 <Row label="Email"    value={email || "—"} />
                 <Row label="Serial"   value={serialNumber || "—"} />
-                <Row label="Sent From" value={senderAccounts.find(a => a.id === senderId)?.label ?? "—"} />
+                <Row label="Agent"    value={agents.find(a => a.id === agentId)?.name ?? "—"} />
+                <Row label="Sent From" value={senderAlias.trim() || senderAccounts.find(a => a.id === senderId)?.label || "—"} />
               </div>
 
               <div className="border-t pt-4 flex flex-col gap-2" style={{ borderColor: "#f1f5f9" }}>
