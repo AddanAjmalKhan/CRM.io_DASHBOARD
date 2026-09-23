@@ -42,6 +42,36 @@ function InputField({ label, value, onChange, placeholder = "", type = "text", i
   );
 }
 
+function TextAreaField({ label, value, onChange, placeholder = "", icon: Icon, rows = 2 }: {
+  label: string; value: string; onChange: (v: string) => void;
+  placeholder?: string; icon: React.ElementType; rows?: number;
+}) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className="text-xs font-bold uppercase tracking-wider" style={{ color: "#64748b" }}>{label}</label>
+      <div className="relative">
+        <Icon
+          size={15}
+          className="absolute left-3.5 top-3 pointer-events-none"
+          style={{ color: focused ? ACCENT : "#94a3b8" }}
+        />
+        <textarea
+          value={value} placeholder={placeholder} rows={rows}
+          onChange={e => onChange(e.target.value)}
+          onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+          className="w-full rounded-xl pl-10 pr-4 py-3 text-sm outline-none transition-all resize-y"
+          style={{
+            border: `1.5px solid ${focused ? ACCENT : "#e2e8f0"}`,
+            boxShadow: focused ? `0 0 0 3px ${ACCENT}1a` : "none",
+            color: NAVY, backgroundColor: "#fff",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function SubmissionsPage() {
   const [firstName,    setFirstName]    = useState("");
   const [lastName,     setLastName]     = useState("");
@@ -196,7 +226,7 @@ export function SubmissionsPage() {
                 <InputField label="Last Name"   value={lastName}   onChange={setLastName}   placeholder="Doe"           icon={User} />
               </div>
               <InputField label="Business Name"  value={businessName} onChange={setBusinessName} placeholder="Acme Corp" icon={Building2} />
-              <InputField label="Address" value={address} onChange={setAddress} placeholder="123 Main St, Suite 400" icon={MapPin} />
+              <TextAreaField label="Address" value={address} onChange={setAddress} placeholder={"123 Main St\nSuite 400\nCity, State ZIP"} icon={MapPin} />
               <div className="grid grid-cols-2 gap-4">
                 <InputField label="Email Address" value={email}         onChange={setEmail}         type="email" placeholder="client@example.com" icon={AtSign} />
                 <InputField label="Serial Number" value={serialNumber}  onChange={setSerialNumber}  placeholder="BH-2026-0001" icon={Hash} />

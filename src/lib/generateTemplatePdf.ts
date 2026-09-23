@@ -1,5 +1,7 @@
 import { PDFDocument, PDFFont, rgb, StandardFonts } from 'pdf-lib'
 
+export type PdfFontFamily = 'Helvetica' | 'TimesRoman' | 'Courier'
+
 export interface PdfFieldConfig {
   id: string
   text: string         // full text with {{variable}} placeholders inline
@@ -8,6 +10,9 @@ export interface PdfFieldConfig {
   fontSize: number
   color: string        // hex e.g. "#161642"
   bold: boolean
+  italic?: boolean
+  underline?: boolean
+  fontFamily?: PdfFontFamily
   align: 'left' | 'center' | 'right'
   maxWidth: number     // 0–100 (% of page width, for wrapping)
 }
@@ -104,14 +109,33 @@ export async function generateTemplatePdf(
   const page = pdfDoc.addPage([pageWidth, pageHeight])
   page.drawImage(embeddedImg, { x: 0, y: 0, width: pageWidth, height: pageHeight })
 
-  const regularFont = await pdfDoc.embedFont(StandardFonts.Helvetica)
-  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
+  const FONTS: Record<PdfFontFamily, [PDFFont, PDFFont, PDFFont, PDFFont]> = {
+    Helvetica: [
+      await pdfDoc.embedFont(StandardFonts.Helvetica),
+      await pdfDoc.embedFont(StandardFonts.HelveticaBold),
+      await pdfDoc.embedFont(StandardFonts.HelveticaOblique),
+      await pdfDoc.embedFont(StandardFonts.HelveticaBoldOblique),
+    ],
+    TimesRoman: [
+      await pdfDoc.embedFont(StandardFonts.TimesRoman),
+      await pdfDoc.embedFont(StandardFonts.TimesRomanBold),
+      await pdfDoc.embedFont(StandardFonts.TimesRomanItalic),
+      await pdfDoc.embedFont(StandardFonts.TimesRomanBoldItalic),
+    ],
+    Courier: [
+      await pdfDoc.embedFont(StandardFonts.Courier),
+      await pdfDoc.embedFont(StandardFonts.CourierBold),
+      await pdfDoc.embedFont(StandardFonts.CourierOblique),
+      await pdfDoc.embedFont(StandardFonts.CourierBoldOblique),
+    ],
+  }
 
   for (const field of template.fields) {
     if (!field.text?.trim()) continue
 
     const resolved = resolveText(field.text, vars)
-    const font = field.bold ? boldFont : regularFont
+    const family = FONTS[field.fontFamily ?? 'Helvetica']
+    const font = family[(field.bold ? 1 : 0) + (field.italic ? 2 : 0)]
     const fontSize = field.fontSize || 12
     const { r, g, b } = hexToRgb(field.color || '#000000')
 
@@ -125,19 +149,30 @@ export async function generateTemplatePdf(
     lines.forEach((line, idx) => {
       if (!line) return
 
+      const w = font.widthOfTextAtSize(line, fontSize)
       let drawX = xPt
       if (field.align === 'center' || field.align === 'right') {
-        const w = font.widthOfTextAtSize(line, fontSize)
         drawX = field.align === 'center' ? xPt - w / 2 : xPt - w
       }
+      drawX = Math.max(0, drawX)
+      const y = startYPt - idx * lineHeight - fontSize
 
       page.drawText(line, {
-        x: Math.max(0, drawX),
-        y: startYPt - idx * lineHeight - fontSize,
+        x: drawX,
+        y,
         size: fontSize,
         font,
         color: rgb(r, g, b),
       })
+
+      if (field.underline) {
+        page.drawLine({
+          start: { x: drawX, y: y - fontSize * 0.08 },
+          end: { x: drawX + w, y: y - fontSize * 0.08 },
+          thickness: Math.max(1, fontSize * 0.05),
+          color: rgb(r, g, b),
+        })
+      }
     })
   }
 

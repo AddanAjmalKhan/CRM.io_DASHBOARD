@@ -37,6 +37,10 @@ function bodyToHtml(text: string): string {
     .join('\n')
 }
 
+function isHtmlContent(text: string): boolean {
+  return /<[a-z][\s\S]*>/i.test(text)
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -87,11 +91,15 @@ export async function POST(request: NextRequest) {
       time: now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }),
     }
 
-    const filledSubject = fillVariables(emailTpl.subject, vars)
-    const filledBody = fillVariables(emailTpl.body, vars)
+    // Multi-line addresses need real <br> tags in HTML email, but literal \n for PDF text wrapping.
+    const emailVars = { ...vars, address: vars.address.replace(/\n/g, '<br>') }
+
+    const filledSubject = fillVariables(emailTpl.subject, emailVars)
+    const filledBody = fillVariables(emailTpl.body, emailVars)
+    const bodyHtml = isHtmlContent(filledBody) ? filledBody : bodyToHtml(filledBody)
     const htmlBody = `
       <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#1e293b;">
-        ${bodyToHtml(filledBody)}
+        ${bodyHtml}
       </div>
     `
 

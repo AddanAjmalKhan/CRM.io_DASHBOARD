@@ -2,13 +2,23 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { X, Plus, Trash2, Upload, Image as ImageIcon } from "lucide-react";
-import type { PdfFieldConfig } from "@/lib/generateTemplatePdf";
+import type { PdfFieldConfig, PdfFontFamily } from "@/lib/generateTemplatePdf";
 import { TEMPLATE_VARIABLES as VARIABLES, TEMPLATE_PREVIEW_VARS as PREVIEW_VARS } from "@/lib/templateVariables";
 
 export type { PdfFieldConfig };
 
 const NAVY = "#161642";
 const ACCENT = "#2f6bf2";
+
+const FONT_FAMILIES: { key: PdfFontFamily; label: string; css: string }[] = [
+  { key: "Helvetica",  label: "Sans",   css: "Helvetica, Arial, sans-serif" },
+  { key: "TimesRoman", label: "Serif",  css: "'Times New Roman', Times, serif" },
+  { key: "Courier",    label: "Mono",   css: "'Courier New', Courier, monospace" },
+];
+
+function fontFamilyCss(family?: PdfFontFamily): string {
+  return FONT_FAMILIES.find(f => f.key === family)?.css ?? FONT_FAMILIES[0].css;
+}
 
 function resolvePreview(text: string): string {
   return text.replace(/\{\{(\w+)\}\}/g, (_, k) => PREVIEW_VARS[k] ?? `{{${k}}}`);
@@ -59,9 +69,30 @@ function FloatingToolbar({
         userSelect: "none",
         whiteSpace: "nowrap",
       }}>
-      {/* Bold */}
+      {/* Bold / Italic / Underline */}
       <button style={{ ...btnBase, ...(field.bold ? active : inactive), fontWeight: 900 }}
         onClick={() => set({ bold: !field.bold })}>B</button>
+      <button style={{ ...btnBase, ...(field.italic ? active : inactive), fontStyle: "italic" }}
+        onClick={() => set({ italic: !field.italic })}>I</button>
+      <button style={{ ...btnBase, ...(field.underline ? active : inactive), textDecoration: "underline" }}
+        onClick={() => set({ underline: !field.underline })}>U</button>
+
+      <div style={sep} />
+
+      {/* Font family */}
+      <select
+        value={field.fontFamily ?? "Helvetica"}
+        onChange={e => set({ fontFamily: e.target.value as PdfFontFamily })}
+        onMouseDown={e => e.stopPropagation()}
+        style={{
+          fontSize: 11, fontWeight: 700, color: "white",
+          backgroundColor: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)",
+          borderRadius: 4, padding: "3px 4px", outline: "none",
+        }}>
+        {FONT_FAMILIES.map(f => (
+          <option key={f.key} value={f.key} style={{ color: "#000" }}>{f.label}</option>
+        ))}
+      </select>
 
       <div style={sep} />
 
@@ -164,13 +195,25 @@ function FieldEditor({
       <div className="rounded-xl p-3 flex flex-col gap-3" style={{ backgroundColor: "#f8fafc", border: "1px solid #e8edf5" }}>
         <p className="text-[10px] font-black uppercase tracking-wider" style={{ color: NAVY }}>Formatting</p>
 
-        {/* Row 1: Bold + Align */}
+        {/* Row 1: Bold / Italic / Underline + Align */}
         <div className="flex items-center gap-1.5 flex-wrap">
           <button onClick={() => set({ bold: !field.bold })}
             className="px-3 py-1.5 rounded-lg text-xs font-black transition-colors"
             style={{ backgroundColor: field.bold ? NAVY : "#e2e8f0", color: field.bold ? "#fff" : "#475569" }}
             title="Bold">
             <strong>B</strong>
+          </button>
+          <button onClick={() => set({ italic: !field.italic })}
+            className="px-3 py-1.5 rounded-lg text-xs font-black transition-colors"
+            style={{ backgroundColor: field.italic ? NAVY : "#e2e8f0", color: field.italic ? "#fff" : "#475569" }}
+            title="Italic">
+            <em>I</em>
+          </button>
+          <button onClick={() => set({ underline: !field.underline })}
+            className="px-3 py-1.5 rounded-lg text-xs font-black transition-colors"
+            style={{ backgroundColor: field.underline ? NAVY : "#e2e8f0", color: field.underline ? "#fff" : "#475569" }}
+            title="Underline">
+            <span style={{ textDecoration: "underline" }}>U</span>
           </button>
           <div className="w-px h-5 mx-0.5" style={{ backgroundColor: "#e2e8f0" }} />
           {(["left", "center", "right"] as const).map(a => (
@@ -183,8 +226,17 @@ function FieldEditor({
           ))}
         </div>
 
-        {/* Row 2: Font size + Color */}
+        {/* Row 2: Font family + size */}
         <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <label className="text-[10px] font-bold text-slate-400 flex-shrink-0">Font</label>
+            <select value={field.fontFamily ?? "Helvetica"}
+              onChange={e => set({ fontFamily: e.target.value as PdfFontFamily })}
+              className="rounded px-1.5 py-1 text-xs font-bold outline-none"
+              style={{ border: "1.5px solid #e2e8f0", color: NAVY }}>
+              {FONT_FAMILIES.map(f => <option key={f.key} value={f.key}>{f.label}</option>)}
+            </select>
+          </div>
           <div className="flex items-center gap-1.5 flex-1">
             <label className="text-[10px] font-bold text-slate-400 flex-shrink-0">Size</label>
             <button onClick={() => set({ fontSize: Math.max(6, field.fontSize - 1) })}
@@ -199,15 +251,17 @@ function FieldEditor({
               style={{ color: "#64748b" }}>+</button>
             <span className="text-[10px] text-slate-400">pt</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <label className="text-[10px] font-bold text-slate-400">Color</label>
-            <label className="cursor-pointer" title="Pick color">
-              <span className="block w-7 h-7 rounded-lg border-2"
-                style={{ backgroundColor: field.color, borderColor: "#e2e8f0" }} />
-              <input type="color" value={field.color} onChange={e => set({ color: e.target.value })}
-                className="sr-only" />
-            </label>
-          </div>
+        </div>
+
+        {/* Row 2b: Color */}
+        <div className="flex items-center gap-1.5">
+          <label className="text-[10px] font-bold text-slate-400">Color</label>
+          <label className="cursor-pointer" title="Pick color">
+            <span className="block w-7 h-7 rounded-lg border-2"
+              style={{ backgroundColor: field.color, borderColor: "#e2e8f0" }} />
+            <input type="color" value={field.color} onChange={e => set({ color: e.target.value })}
+              className="sr-only" />
+          </label>
         </div>
 
         {/* Row 3: Width */}
@@ -321,8 +375,10 @@ function FieldBlock({
         fontSize: `${displaySize}px`,
         color: field.color,
         fontWeight: field.bold ? 900 : 400,
+        fontStyle: field.italic ? "italic" : "normal",
+        textDecoration: field.underline ? "underline" : "none",
         textAlign: field.align,
-        fontFamily: "Helvetica, Arial, sans-serif",
+        fontFamily: fontFamilyCss(field.fontFamily),
         lineHeight: 1.35,
         whiteSpace: "pre-wrap",
         wordBreak: "break-word",
@@ -400,7 +456,7 @@ export function PdfTemplateEditor({
   const addField = useCallback((x = 50, y = 50) => {
     const f: PdfFieldConfig = {
       id: uid(), text: "", x: Math.max(1, Math.min(99, x)), y: Math.max(1, Math.min(99, y)),
-      fontSize: 18, color: "#161642", bold: false, align: "left", maxWidth: 80,
+      fontSize: 18, color: "#161642", bold: false, italic: false, underline: false, fontFamily: "Helvetica", align: "left", maxWidth: 80,
     };
     setFields(p => [...p, f]);
     setSelectedId(f.id);
@@ -568,7 +624,9 @@ export function PdfTemplateEditor({
                         style={{ backgroundColor: NAVY }}>{i + 1}</div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs text-slate-600 truncate">{resolvePreview(f.text || "(empty — click to edit)")}</p>
-                        <p className="text-[10px] text-slate-400 mt-0.5">{f.fontSize}pt · {f.bold ? "Bold" : "Regular"} · {f.align}</p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">
+                          {f.fontSize}pt · {FONT_FAMILIES.find(x => x.key === (f.fontFamily ?? "Helvetica"))?.label} · {f.bold ? "Bold" : "Regular"}{f.italic ? " Italic" : ""}{f.underline ? " Underline" : ""} · {f.align}
+                        </p>
                       </div>
                     </div>
                   ))}

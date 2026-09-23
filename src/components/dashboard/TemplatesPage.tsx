@@ -49,21 +49,125 @@ function Field({ label, value, onChange, placeholder = "", type = "text", inputR
   );
 }
 
-function TextArea({ label, value, onChange, placeholder = "", rows = 6, textareaRef }: {
-  label: string; value: string; onChange: (v: string) => void; placeholder?: string; rows?: number;
-  textareaRef?: React.Ref<HTMLTextAreaElement>;
+const EMAIL_FONT_FAMILIES = [
+  { label: "Arial",             value: "Arial, Helvetica, sans-serif" },
+  { label: "Times New Roman",   value: "'Times New Roman', Times, serif" },
+  { label: "Courier New",       value: "'Courier New', Courier, monospace" },
+  { label: "Georgia",           value: "Georgia, serif" },
+];
+const EMAIL_FONT_SIZES = [12, 14, 16, 18, 20, 24, 28, 32];
+
+function isHtmlContent(text: string): boolean {
+  return /<[a-z][\s\S]*>/i.test(text);
+}
+
+// ─── Rich text body editor (hand-rolled, no external library) ────────────────
+function RichTextBody({ label, onChange, editorRef }: {
+  label: string; onChange: (html: string) => void; editorRef: React.RefObject<HTMLDivElement | null>;
 }) {
-  const [focused, setFocused] = useState(false);
+  const savedRange = useRef<Range | null>(null);
+
+  const saveSelection = () => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && editorRef.current?.contains(sel.anchorNode)) {
+      savedRange.current = sel.getRangeAt(0).cloneRange();
+    }
+  };
+
+  const restoreSelection = () => {
+    const sel = window.getSelection();
+    if (sel && savedRange.current) {
+      sel.removeAllRanges();
+      sel.addRange(savedRange.current);
+    }
+  };
+
+  const exec = (command: string, value?: string) => {
+    const el = editorRef.current;
+    if (!el) return;
+    el.focus();
+    document.execCommand("styleWithCSS", false, "true");
+    document.execCommand(command, false, value);
+    onChange(el.innerHTML);
+  };
+
+  const applyFontFamily = (family: string) => {
+    const el = editorRef.current;
+    if (!el) return;
+    el.focus();
+    restoreSelection();
+    document.execCommand("styleWithCSS", false, "true");
+    document.execCommand("fontName", false, family);
+    onChange(el.innerHTML);
+  };
+
+  const applyFontSize = (px: string) => {
+    const el = editorRef.current;
+    if (!el) return;
+    el.focus();
+    restoreSelection();
+    document.execCommand("styleWithCSS", false, "true");
+    document.execCommand("fontSize", false, "7");
+    el.querySelectorAll('font[size="7"]').forEach(f => {
+      const span = document.createElement("span");
+      span.style.fontSize = `${px}px`;
+      span.innerHTML = (f as HTMLElement).innerHTML;
+      f.replaceWith(span);
+    });
+    onChange(el.innerHTML);
+  };
+
+  const toolbarBtnStyle: React.CSSProperties = {
+    padding: "5px 9px", borderRadius: 6, fontSize: 12, fontWeight: 700,
+    cursor: "pointer", border: "none", backgroundColor: "#e2e8f0", color: "#475569",
+  };
+  const selectStyle: React.CSSProperties = {
+    border: "1.5px solid #e2e8f0", color: NAVY, borderRadius: 6, padding: "4px 6px", fontSize: 11, fontWeight: 700, outline: "none",
+  };
+
   return (
     <div className="flex flex-col gap-1.5">
       <label className="text-sm font-semibold" style={{ color: NAVY }}>{label}</label>
-      <textarea
-        ref={textareaRef}
-        value={value} placeholder={placeholder} rows={rows}
-        onChange={e => onChange(e.target.value)}
-        onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
-        className="rounded-lg px-3 py-2.5 text-sm outline-none transition-all resize-y"
-        style={{ border: `1.5px solid ${focused ? ACCENT : "#e2e8f0"}`, boxShadow: focused ? `0 0 0 3px ${ACCENT}18` : "none", color: NAVY, fontFamily: "monospace" }}
+      <div
+        className="rounded-t-lg px-2 py-1.5 flex items-center gap-1.5 flex-wrap"
+        style={{ border: "1.5px solid #e2e8f0", borderBottom: "none", backgroundColor: "#f8fafc" }}
+      >
+        <button type="button" style={toolbarBtnStyle} onMouseDown={e => e.preventDefault()} onClick={() => exec("bold")}>
+          <strong>B</strong>
+        </button>
+        <button type="button" style={toolbarBtnStyle} onMouseDown={e => e.preventDefault()} onClick={() => exec("italic")}>
+          <em>I</em>
+        </button>
+        <button type="button" style={toolbarBtnStyle} onMouseDown={e => e.preventDefault()} onClick={() => exec("underline")}>
+          <span style={{ textDecoration: "underline" }}>U</span>
+        </button>
+        <div className="w-px h-5 mx-0.5" style={{ backgroundColor: "#e2e8f0" }} />
+        <select
+          defaultValue=""
+          onMouseDown={saveSelection}
+          onChange={e => applyFontFamily(e.target.value)}
+          style={selectStyle}
+        >
+          <option value="" disabled>Font</option>
+          {EMAIL_FONT_FAMILIES.map(f => <option key={f.label} value={f.value}>{f.label}</option>)}
+        </select>
+        <select
+          defaultValue=""
+          onMouseDown={saveSelection}
+          onChange={e => applyFontSize(e.target.value)}
+          style={selectStyle}
+        >
+          <option value="" disabled>Size</option>
+          {EMAIL_FONT_SIZES.map(s => <option key={s} value={s}>{s}px</option>)}
+        </select>
+      </div>
+      <div
+        ref={editorRef}
+        contentEditable
+        suppressContentEditableWarning
+        onInput={e => onChange((e.target as HTMLDivElement).innerHTML)}
+        className="rounded-b-lg px-3 py-2.5 text-sm outline-none overflow-y-auto"
+        style={{ border: "1.5px solid #e2e8f0", color: NAVY, minHeight: 180, maxHeight: 320 }}
       />
     </div>
   );
@@ -101,16 +205,45 @@ function EmailModal({ open, onClose, initial, onSave }: {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const subjectRef = useRef<HTMLInputElement>(null);
-  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const bodyEditorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (open) {
       setName(initial?.name ?? "");
       setSubject(initial?.subject ?? "");
-      setBody(initial?.body ?? "");
+      const initialBody = initial?.body ?? "";
+      setBody(initialBody);
+      if (bodyEditorRef.current) {
+        // Legacy templates stored plain text (with literal \n) before this editor
+        // existed — convert those newlines to <br> so they still display correctly.
+        bodyEditorRef.current.innerHTML = isHtmlContent(initialBody)
+          ? initialBody
+          : initialBody.replace(/\n/g, "<br>");
+      }
       setError("");
     }
   }, [open, initial]);
+
+  function insertVarInBody(key: string) {
+    const el = bodyEditorRef.current;
+    if (!el) return;
+    el.focus();
+    const token = `{{${key}}}`;
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && el.contains(sel.anchorNode)) {
+      const range = sel.getRangeAt(0);
+      range.deleteContents();
+      const node = document.createTextNode(token);
+      range.insertNode(node);
+      range.setStartAfter(node);
+      range.setEndAfter(node);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } else {
+      el.appendChild(document.createTextNode(token));
+    }
+    setBody(el.innerHTML);
+  }
 
   function insertVarAt(
     ref: React.RefObject<HTMLInputElement | HTMLTextAreaElement | null>,
@@ -173,9 +306,8 @@ function EmailModal({ open, onClose, initial, onSave }: {
             <VariableChips onInsert={key => insertVarAt(subjectRef, subject, setSubject, key)} />
           </div>
           <div className="flex flex-col gap-1.5">
-            <TextArea label="Email Body" value={body} onChange={setBody} rows={8} textareaRef={bodyRef}
-              placeholder={"Dear {{firstName}} {{lastName}},\n\nPlease find your certificate attached.\n\nBest regards,\nBusiness Hub Team"} />
-            <VariableChips onInsert={key => insertVarAt(bodyRef, body, setBody, key)} />
+            <RichTextBody label="Email Body" onChange={setBody} editorRef={bodyEditorRef} />
+            <VariableChips onInsert={insertVarInBody} />
           </div>
           {error && <p className="text-sm text-red-500">{error}</p>}
           <button onClick={handleSave} disabled={saving}
