@@ -1,6 +1,33 @@
 import { PDFDocument, PDFFont, rgb, StandardFonts } from 'pdf-lib'
+import fontkit from '@pdf-lib/fontkit'
+import { readFile } from 'fs/promises'
+import path from 'path'
 
-export type PdfFontFamily = 'Helvetica' | 'TimesRoman' | 'Courier'
+export type PdfFontFamily =
+  | 'Helvetica' | 'TimesRoman' | 'Courier'
+  | 'Tinos' | 'Roboto' | 'RobotoMono' | 'Gelasio'
+  | 'PlayfairDisplay' | 'Merriweather' | 'Montserrat' | 'OpenSans' | 'GreatVibes'
+
+// Standard-14 fonts need no file — everything else is a real font file under src/fonts/.
+const STANDARD_FONT_KEYS: Record<'Helvetica' | 'TimesRoman' | 'Courier', [StandardFonts, StandardFonts, StandardFonts, StandardFonts]> = {
+  Helvetica:  [StandardFonts.Helvetica, StandardFonts.HelveticaBold, StandardFonts.HelveticaOblique, StandardFonts.HelveticaBoldOblique],
+  TimesRoman: [StandardFonts.TimesRoman, StandardFonts.TimesRomanBold, StandardFonts.TimesRomanItalic, StandardFonts.TimesRomanBoldItalic],
+  Courier:    [StandardFonts.Courier, StandardFonts.CourierBold, StandardFonts.CourierOblique, StandardFonts.CourierBoldOblique],
+}
+
+// Custom (embedded) font files. Families without a distinct bold/italic face
+// (e.g. GreatVibes) reuse "Regular" for those slots.
+const CUSTOM_FONT_FILES: Record<Exclude<PdfFontFamily, keyof typeof STANDARD_FONT_KEYS>, [string, string, string, string]> = {
+  Tinos:           ['Tinos-Regular.ttf', 'Tinos-Bold.ttf', 'Tinos-Italic.ttf', 'Tinos-BoldItalic.ttf'],
+  Roboto:          ['Roboto-Regular.ttf', 'Roboto-Bold.ttf', 'Roboto-Italic.ttf', 'Roboto-BoldItalic.ttf'],
+  RobotoMono:      ['RobotoMono-Regular.ttf', 'RobotoMono-Bold.ttf', 'RobotoMono-Italic.ttf', 'RobotoMono-BoldItalic.ttf'],
+  Gelasio:         ['Gelasio-Regular.ttf', 'Gelasio-Bold.ttf', 'Gelasio-Italic.ttf', 'Gelasio-BoldItalic.ttf'],
+  PlayfairDisplay: ['PlayfairDisplay-Regular.ttf', 'PlayfairDisplay-Bold.ttf', 'PlayfairDisplay-Italic.ttf', 'PlayfairDisplay-BoldItalic.ttf'],
+  Merriweather:    ['Merriweather-Regular.ttf', 'Merriweather-Bold.ttf', 'Merriweather-Italic.ttf', 'Merriweather-BoldItalic.ttf'],
+  Montserrat:      ['Montserrat-Regular.ttf', 'Montserrat-Bold.ttf', 'Montserrat-Italic.ttf', 'Montserrat-BoldItalic.ttf'],
+  OpenSans:        ['OpenSans-Regular.ttf', 'OpenSans-Bold.ttf', 'OpenSans-Italic.ttf', 'OpenSans-BoldItalic.ttf'],
+  GreatVibes:      ['GreatVibes-Regular.ttf', 'GreatVibes-Regular.ttf', 'GreatVibes-Regular.ttf', 'GreatVibes-Regular.ttf'],
+}
 
 export interface PdfFieldConfig {
   id: string
@@ -109,33 +136,34 @@ export async function generateTemplatePdf(
   const page = pdfDoc.addPage([pageWidth, pageHeight])
   page.drawImage(embeddedImg, { x: 0, y: 0, width: pageWidth, height: pageHeight })
 
-  const FONTS: Record<PdfFontFamily, [PDFFont, PDFFont, PDFFont, PDFFont]> = {
-    Helvetica: [
-      await pdfDoc.embedFont(StandardFonts.Helvetica),
-      await pdfDoc.embedFont(StandardFonts.HelveticaBold),
-      await pdfDoc.embedFont(StandardFonts.HelveticaOblique),
-      await pdfDoc.embedFont(StandardFonts.HelveticaBoldOblique),
-    ],
-    TimesRoman: [
-      await pdfDoc.embedFont(StandardFonts.TimesRoman),
-      await pdfDoc.embedFont(StandardFonts.TimesRomanBold),
-      await pdfDoc.embedFont(StandardFonts.TimesRomanItalic),
-      await pdfDoc.embedFont(StandardFonts.TimesRomanBoldItalic),
-    ],
-    Courier: [
-      await pdfDoc.embedFont(StandardFonts.Courier),
-      await pdfDoc.embedFont(StandardFonts.CourierBold),
-      await pdfDoc.embedFont(StandardFonts.CourierOblique),
-      await pdfDoc.embedFont(StandardFonts.CourierBoldOblique),
-    ],
+  pdfDoc.registerFontkit(fontkit)
+  const fontCache = new Map<string, PDFFont>()
+
+  async function getFont(family: PdfFontFamily, bold: boolean, italic: boolean): Promise<PDFFont> {
+    const slot = (bold ? 1 : 0) + (italic ? 2 : 0)
+    const cacheKey = `${family}-${slot}`
+    const cached = fontCache.get(cacheKey)
+    if (cached) return cached
+
+    let font: PDFFont
+    if (family in STANDARD_FONT_KEYS) {
+      const std = STANDARD_FONT_KEYS[family as keyof typeof STANDARD_FONT_KEYS][slot]
+      font = await pdfDoc.embedFont(std)
+    } else {
+      const fileName = CUSTOM_FONT_FILES[family as keyof typeof CUSTOM_FONT_FILES][slot]
+      const fileBytes = await readFile(path.join(process.cwd(), 'src', 'fonts', family, fileName))
+      font = await pdfDoc.embedFont(fileBytes)
+    }
+
+    fontCache.set(cacheKey, font)
+    return font
   }
 
   for (const field of template.fields) {
     if (!field.text?.trim()) continue
 
     const resolved = resolveText(field.text, vars)
-    const family = FONTS[field.fontFamily ?? 'Helvetica']
-    const font = family[(field.bold ? 1 : 0) + (field.italic ? 2 : 0)]
+    const font = await getFont(field.fontFamily ?? 'Helvetica', field.bold, field.italic ?? false)
     const fontSize = field.fontSize || 12
     const { r, g, b } = hexToRgb(field.color || '#000000')
 

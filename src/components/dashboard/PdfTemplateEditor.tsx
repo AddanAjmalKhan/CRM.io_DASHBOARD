@@ -11,9 +11,18 @@ const NAVY = "#161642";
 const ACCENT = "#2f6bf2";
 
 const FONT_FAMILIES: { key: PdfFontFamily; label: string; css: string }[] = [
-  { key: "Helvetica",  label: "Sans",   css: "Helvetica, Arial, sans-serif" },
-  { key: "TimesRoman", label: "Serif",  css: "'Times New Roman', Times, serif" },
-  { key: "Courier",    label: "Mono",   css: "'Courier New', Courier, monospace" },
+  { key: "Helvetica",       label: "Helvetica",        css: "Helvetica, Arial, sans-serif" },
+  { key: "TimesRoman",      label: "Times-Roman",      css: "'Times New Roman', Times, serif" },
+  { key: "Courier",         label: "Courier",          css: "'Courier New', Courier, monospace" },
+  { key: "Tinos",           label: "Times New Roman",  css: "'Times New Roman', Times, serif" },
+  { key: "Roboto",          label: "Roboto",           css: "Roboto, Arial, sans-serif" },
+  { key: "RobotoMono",      label: "Roboto Mono",      css: "'Roboto Mono', 'Courier New', monospace" },
+  { key: "Gelasio",         label: "Georgia",          css: "Georgia, 'Times New Roman', serif" },
+  { key: "PlayfairDisplay", label: "Playfair Display", css: "'Playfair Display', Georgia, serif" },
+  { key: "Merriweather",    label: "Merriweather",     css: "Merriweather, Georgia, serif" },
+  { key: "Montserrat",      label: "Montserrat",       css: "Montserrat, Arial, sans-serif" },
+  { key: "OpenSans",        label: "Open Sans",        css: "'Open Sans', Arial, sans-serif" },
+  { key: "GreatVibes",      label: "Great Vibes",      css: "'Great Vibes', cursive" },
 ];
 
 function fontFamilyCss(family?: PdfFontFamily): string {
