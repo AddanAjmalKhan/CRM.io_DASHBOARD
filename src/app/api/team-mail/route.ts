@@ -65,10 +65,6 @@ function stripQuotedReply(body: string): string {
   return out.join('\n').trim()
 }
 
-function normalizeSubject(s: string) {
-  return s.replace(/^(Re:|Fwd:|FW:|RE:|FWD:)\s*/gi, '').trim().toLowerCase()
-}
-
 /* ── GET: fetch inbox ────────────────────────────────────── */
 export async function GET(request: NextRequest) {
   const accountId = request.nextUrl.searchParams.get('accountId')
@@ -149,9 +145,18 @@ export async function GET(request: NextRequest) {
 
     await client.logout()
 
+    // Group by the OTHER party's email address (like a normal inbox / WhatsApp),
+    // not by subject line — a lead's whole history should stay one conversation
+    // even as the subject changes across separate emails over time.
+    const counterpart = (email: (typeof allEmails)[number]): string => {
+      const addr = isMine(email.from.email) ? (email.to[0] ?? '') : (email.replyTo || email.from.email)
+      return addr.toLowerCase().trim()
+    }
+
     const groups = new Map<string, typeof allEmails>()
     for (const email of allEmails) {
-      const key = normalizeSubject(email.subject)
+      const key = counterpart(email)
+      if (!key) continue
       if (!groups.has(key)) groups.set(key, [])
       groups.get(key)!.push(email)
     }
@@ -173,7 +178,7 @@ export async function GET(request: NextRequest) {
         id:        first.uid,
         leadName:  leadName.charAt(0).toUpperCase() + leadName.slice(1),
         leadEmail,
-        subject:   first.subject,
+        subject:   latest.subject,
         unread:    sorted.some((m: any) => m.unread),
         starred:   false,
         lastTime:  relativeTime(new Date(latest.date)),
