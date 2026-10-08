@@ -130,8 +130,9 @@ function AccountModal({ open, initial, onClose, onSave }: {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm"
+    <div className="fixed inset-0 z-50 overflow-y-auto p-6 bg-slate-900/40 backdrop-blur-sm"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="min-h-full flex items-center justify-center">
       <div className="w-full max-w-lg rounded-2xl shadow-2xl bg-white border border-slate-100 flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <div className="flex items-center gap-2">
@@ -177,6 +178,7 @@ function AccountModal({ open, initial, onClose, onSave }: {
             {saving ? "Saving…" : initial ? "Update Account" : "Connect Account"}
           </button>
         </div>
+      </div>
       </div>
     </div>
   );
@@ -653,8 +655,9 @@ export function EmailsPage() {
 
       {/* Compose modal */}
       {showCompose && activeAccount && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm"
+        <div className="fixed inset-0 z-50 overflow-y-auto p-6 bg-slate-900/40 backdrop-blur-sm"
           onClick={e => { if (e.target === e.currentTarget) setShowCompose(false); }}>
+          <div className="min-h-full flex items-center justify-center">
           <div className="w-full max-w-lg rounded-2xl shadow-2xl bg-white border border-slate-100 flex flex-col overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
               <div className="flex items-center gap-2">
@@ -665,7 +668,7 @@ export function EmailsPage() {
                 <X size={14} />
               </button>
             </div>
-            <div className="p-6 flex flex-col gap-4">
+            <div className="p-6 flex flex-col gap-4 overflow-y-auto">
               {sendError && <p className="text-xs font-semibold text-red-600 bg-red-50 px-3 py-2 rounded-lg">{sendError}</p>}
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">From</label>
@@ -690,6 +693,7 @@ export function EmailsPage() {
                 {sending ? "Sending…" : "Send Message"}
               </button>
             </div>
+          </div>
           </div>
         </div>
       )}

@@ -289,9 +289,10 @@ function EmailModal({ open, onClose, initial, onSave }: {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6"
+    <div className="fixed inset-0 z-50 overflow-y-auto p-6"
       style={{ backgroundColor: "rgba(22,22,66,0.45)", backdropFilter: "blur(4px)" }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="min-h-full flex items-center justify-center">
       <div className="w-full max-w-xl rounded-2xl shadow-2xl bg-white flex flex-col" style={{ border: "1px solid #e8edf5", maxHeight: "85vh" }}>
         <div className="flex items-center justify-between px-7 py-5 border-b" style={{ borderColor: "#f1f5f9" }}>
           <h2 className="text-base font-black" style={{ color: NAVY }}>{initial ? "Edit Email Template" : "Add Email Template"}</h2>
@@ -316,6 +317,7 @@ function EmailModal({ open, onClose, initial, onSave }: {
             {saving ? "SAVING..." : initial ? "UPDATE TEMPLATE" : "CREATE TEMPLATE"}
           </button>
         </div>
+      </div>
       </div>
     </div>
   );
@@ -370,9 +372,10 @@ function PdfModal({ open, onClose, initial, onSave }: {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6"
+    <div className="fixed inset-0 z-50 overflow-y-auto p-6"
       style={{ backgroundColor: "rgba(22,22,66,0.45)", backdropFilter: "blur(4px)" }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="min-h-full flex items-center justify-center">
       <div className="w-full max-w-xl rounded-2xl shadow-2xl bg-white flex flex-col" style={{ border: "1px solid #e8edf5", maxHeight: "85vh" }}>
         <div className="flex items-center justify-between px-7 py-5 border-b" style={{ borderColor: "#f1f5f9" }}>
           <h2 className="text-base font-black" style={{ color: NAVY }}>{initial ? "Edit PDF Template" : "Add PDF Template"}</h2>
@@ -393,6 +396,7 @@ function PdfModal({ open, onClose, initial, onSave }: {
           </button>
         </div>
       </div>
+      </div>
     </div>
   );
 }
@@ -403,9 +407,10 @@ function DeleteModal({ open, name, onClose, onConfirm, loading }: {
 }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6"
+    <div className="fixed inset-0 z-50 overflow-y-auto p-6"
       style={{ backgroundColor: "rgba(22,22,66,0.45)", backdropFilter: "blur(4px)" }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="min-h-full flex items-center justify-center">
       <div className="w-full max-w-sm rounded-2xl shadow-2xl bg-white p-8 flex flex-col gap-5" style={{ border: "1px solid #e8edf5" }}>
         <h2 className="text-base font-black" style={{ color: NAVY }}>Delete Template?</h2>
         <p className="text-sm text-slate-500">Are you sure you want to delete <span className="font-bold text-slate-700">"{name}"</span>? This cannot be undone.</p>
@@ -417,6 +422,7 @@ function DeleteModal({ open, name, onClose, onConfirm, loading }: {
             {loading ? "Deleting..." : "Delete"}
           </button>
         </div>
+      </div>
       </div>
     </div>
   );

@@ -60,9 +60,10 @@ export function InvoicePreviewModal({ invoice, onClose, isNew = false, onMarkPai
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6"
+    <div className="fixed inset-0 z-50 overflow-y-auto p-6"
       style={{ backgroundColor: "rgba(22,22,66,0.5)", backdropFilter: "blur(4px)" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="min-h-full flex items-center justify-center">
       <div className="w-full max-w-2xl rounded-2xl shadow-2xl bg-white flex flex-col"
         style={{ border: "1px solid #e8edf5", maxHeight: "90vh" }}>
 
@@ -202,6 +203,7 @@ export function InvoicePreviewModal({ invoice, onClose, isNew = false, onMarkPai
             </button>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

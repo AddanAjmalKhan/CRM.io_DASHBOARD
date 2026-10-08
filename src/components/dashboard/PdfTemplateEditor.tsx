@@ -511,9 +511,10 @@ export function PdfTemplateEditor({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+    <div className="fixed inset-0 z-50 overflow-y-auto p-4"
       style={{ backgroundColor: "rgba(22,22,66,0.55)", backdropFilter: "blur(6px)" }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="min-h-full flex items-center justify-center">
       <div className="bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden"
         style={{ width: "min(1120px, 96vw)", height: "min(840px, 94vh)", border: "1px solid #e8edf5" }}>
 
@@ -665,6 +666,7 @@ export function PdfTemplateEditor({
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

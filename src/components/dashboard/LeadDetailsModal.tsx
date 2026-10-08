@@ -43,9 +43,10 @@ export function LeadDetailsModal({ lead, onClose }: { lead: Lead | null; onClose
     : undefined;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6"
+    <div className="fixed inset-0 z-50 overflow-y-auto p-6"
       style={{ backgroundColor: "rgba(22,22,66,0.5)", backdropFilter: "blur(4px)" }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="min-h-full flex items-center justify-center">
       <div className="w-full max-w-2xl rounded-2xl overflow-hidden shadow-2xl" style={{ border: "1px solid #e8edf5" }}>
 
         <div className="relative flex items-center justify-center px-8 py-5" style={{ backgroundColor: NAVY }}>
@@ -71,6 +72,7 @@ export function LeadDetailsModal({ lead, onClose }: { lead: Lead | null; onClose
           <Row label="Created At" value={createdStr} />
           <div className="mt-6 h-px" style={{ backgroundColor: "#e5e7eb" }} />
         </div>
+      </div>
       </div>
     </div>
   );
